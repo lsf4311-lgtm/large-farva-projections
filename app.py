@@ -116,7 +116,7 @@ section[data-testid="stSidebar"] {
 """, unsafe_allow_html=True)
 
 # ── Import pipeline from league_analysis_final.py ───────────────────────────────────
-sys.path.append(r'C:\Users\lsf43\Desktop\2026 ottoneu analysis with Claude')
+sys.path.append(os.path.dirname(__file__))
 
 from league_analysis_final import (
     get_league_rosters, fuzzy_match_players, optimize_lineup,
@@ -259,7 +259,7 @@ if page == "Standings":
         </div>''', unsafe_allow_html=True)
 
     st.markdown('<p class="section-header">Full Standings</p>', unsafe_allow_html=True)
-    st.dataframe(standings, use_container_width=True, hide_index=True)
+    st.dataframe(standings, width='stretch', hide_index=True)
 
 
 # ── 2. Team Detail ────────────────────────────────────────────────────────────
@@ -302,7 +302,7 @@ elif page == "Team Detail":
         'player_name': 'Player', 'position': 'POS', 'salary': 'Salary', 'FPTS': 'Proj FPTS'
     })
     starters['Proj FPTS'] = starters['Proj FPTS'].round(1)
-    st.dataframe(starters, use_container_width=True, hide_index=True)
+    st.dataframe(starters, width='stretch', hide_index=True)
 
     # Bench
     st.markdown('<p class="section-header">Bench</p>', unsafe_allow_html=True)
@@ -312,7 +312,7 @@ elif page == "Team Detail":
         'player_name': 'Player', 'position': 'POS', 'salary': 'Salary', 'FPTS': 'Proj FPTS'
     })
     bench['Proj FPTS'] = bench['Proj FPTS'].round(1)
-    st.dataframe(bench, use_container_width=True, hide_index=True)
+    st.dataframe(bench, width='stretch', hide_index=True)
 
 
 # ── 3. Player Search ──────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ elif page == "Player Search":
             'salary': 'Salary', 'FPTS': 'Proj FPTS', 'starter': 'Status'
         })
 
-        st.dataframe(results, use_container_width=True, hide_index=True)
+        st.dataframe(results, width='stretch', hide_index=True)
     else:
         st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size:13px;">Type a player name to search...</p>',
                     unsafe_allow_html=True)
@@ -400,4 +400,4 @@ elif page == "Head to Head":
                     'player_name': 'Player', 'position': 'POS',
                     'salary': '$', 'FPTS': 'FPTS', 'starter': 'S'
                 })
-                st.dataframe(roster, use_container_width=True, hide_index=True)
+                st.dataframe(roster, width='stretch', hide_index=True)

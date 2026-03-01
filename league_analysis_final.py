@@ -7,7 +7,10 @@ import time
 
 # ── Configuration ────────────────────────────────────────────────────────────
 LEAGUE_ID = "569"
-DATA_DIR = r'C:\Users\lsf43\Desktop\2026 ottoneu analysis with Claude\data'
+import os
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+if not os.path.exists(DATA_DIR):
+    DATA_DIR = os.path.dirname(__file__)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def make_api_request(url, timeout=30):
