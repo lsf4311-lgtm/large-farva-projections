@@ -96,7 +96,7 @@ def get_league_rosters():
                     'player_type': table_id
                 })
 
-        time.sleep(1)
+        time.sleep(3)
 
     df = pd.DataFrame(all_players)
     print(f"\nTotal players scraped: {len(df)} across {df['team_name'].nunique()} teams")
