@@ -244,6 +244,11 @@ with st.spinner("Loading league data..."):
 # ── 1. Standings ──────────────────────────────────────────────────────────────
 if page == "Standings":
     st.markdown("# Projected Standings")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    All data based on 2026 OOPSY preseason, and team-level projections optimized to consider starters vs. bench players. Though, don't take data at face value - may be lurking inaccuracies.
+    </p>
+    """, unsafe_allow_html=True)
     st.markdown(f'<p class="last-updated">Last updated: {last_updated.strftime("%b %d, %Y %I:%M %p")}</p>',
                 unsafe_allow_html=True)
 
@@ -330,7 +335,7 @@ elif page == "Positional Breakdown":
     st.markdown("# Positional Breakdown")
     st.markdown("""
     <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
-    ⚠️ Beware Ohtani, who masquerades as all SP points — his hitting projection is baked into his pitching row since Ottoneu lists him as a pitcher only.
+    ⚠️ Beware Ohtani, who masquerades as all SP points — his hitting projection is baked into his pitching row.
     </p>
     """, unsafe_allow_html=True)
     st.markdown("Projected FPTS by position slot for each team's optimized lineup.")
