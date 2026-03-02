@@ -141,10 +141,12 @@ def fuzzy_match_players(unmatched_rosters, projection_df, threshold=90):
     return pd.DataFrame(results)
 
 
-# ── Step 3: Lineup Optimizer ─────────────────────────────────────────────────
 def optimize_lineup(team_df):
-    """Optimize lineup assignment for a single team using linear programming."""
-    slots = {
+    """Optimize lineup assignment using two-phase approach:
+    Phase 1: Fill all constrained positions optimally (excluding Util)
+    Phase 2: Best remaining eligible player goes to Util
+    """
+    slots_phase1 = {
         'C':    ['C'],
         '1B':   ['1B'],
         '2B':   ['2B'],
@@ -156,7 +158,6 @@ def optimize_lineup(team_df):
         'OF3':  ['OF'],
         'OF4':  ['OF'],
         'OF5':  ['OF'],
-        'Util': ['C', '1B', '2B', 'SS', '3B', 'OF'],
         'SP1':  ['SP'],
         'SP2':  ['SP'],
         'SP3':  ['SP'],
@@ -169,6 +170,8 @@ def optimize_lineup(team_df):
         'RP5':  ['RP'],
     }
 
+    util_eligible = ['C', '1B', '2B', 'SS', '3B', 'OF']
+
     def get_positions(pos_string):
         if pd.isna(pos_string):
             return []
@@ -179,9 +182,10 @@ def optimize_lineup(team_df):
     team_df['FPTS'] = team_df['FPTS'].fillna(0).clip(lower=0)
 
     players = team_df.index.tolist()
-    slot_names = list(slots.keys())
+    slot_names = list(slots_phase1.keys())
 
-    prob = LpProblem("lineup_optimization", LpMaximize)
+    # ── Phase 1: Optimize all positions except Util ───────────────────────────
+    prob = LpProblem("lineup_phase1", LpMaximize)
     x = {(p, s): LpVariable(f"x_{p}_{s}", cat=LpBinary)
          for p in players for s in slot_names}
 
@@ -197,13 +201,15 @@ def optimize_lineup(team_df):
     for p in players:
         player_positions = team_df.loc[p, 'pos_list']
         for s in slot_names:
-            if not any(pos in slots[s] for pos in player_positions):
+            if not any(pos in slots_phase1[s] for pos in player_positions):
                 prob += x[p, s] == 0
 
     prob.solve(PULP_CBC_CMD(msg=0))
 
-    total_fpts = value(prob.objective) or 0
+    # Extract Phase 1 assignments
     assigned = []
+    assigned_players = set()
+
     for p in players:
         for s in slot_names:
             if value(x[p, s]) == 1:
@@ -213,7 +219,42 @@ def optimize_lineup(team_df):
                     'position': team_df.loc[p, 'position'],
                     'FPTS': team_df.loc[p, 'FPTS']
                 })
+                assigned_players.add(p)
+    
+    # Sort SP and RP slots by FPTS descending for clean display
+    pitcher_slots = [a for a in assigned if a['slot'].startswith('SP') or a['slot'].startswith('RP')]
+    non_pitcher_slots = [a for a in assigned if not a['slot'].startswith('SP') and not a['slot'].startswith('RP')]
 
+    sp_assigned = sorted([a for a in pitcher_slots if a['slot'].startswith('SP')], 
+                        key=lambda x: x['FPTS'], reverse=True)
+    rp_assigned = sorted([a for a in pitcher_slots if a['slot'].startswith('RP')], 
+                        key=lambda x: x['FPTS'], reverse=True)
+
+    for i, a in enumerate(sp_assigned):
+        a['slot'] = f'SP{i+1}'
+    for i, a in enumerate(rp_assigned):
+        a['slot'] = f'RP{i+1}'
+
+    assigned = non_pitcher_slots + sp_assigned + rp_assigned
+
+    # ── Phase 2: Best remaining Util-eligible player fills Util ──────────────
+    unassigned = team_df[~team_df.index.isin(assigned_players)].copy()
+    util_candidates = unassigned[
+        unassigned['pos_list'].apply(
+            lambda positions: any(pos in util_eligible for pos in positions)
+        )
+    ].sort_values('FPTS', ascending=False)
+
+    if len(util_candidates) > 0:
+        util_player = util_candidates.iloc[0]
+        assigned.append({
+            'player_name': util_player['player_name'],
+            'slot': 'Util',
+            'position': util_player['position'],
+            'FPTS': util_player['FPTS']
+        })
+
+    total_fpts = sum(a['FPTS'] for a in assigned)
     return total_fpts, pd.DataFrame(assigned)
 
 

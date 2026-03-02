@@ -185,10 +185,15 @@ def load_all_data():
     # Optimize lineups
     team_results = []
     lineup_assignments = {}
+    slot_lookup = {}
 
     for team_name, team_df in all_players.groupby('team_name'):
         total_fpts, lineup = optimize_lineup(team_df)
         lineup_assignments[team_name] = set(lineup['player_name'].tolist()) if not lineup.empty else set()
+        # Store slot assignments for positional breakdown
+        if not lineup.empty:
+            for _, row in lineup.iterrows():
+                slot_lookup[(team_name, row['player_name'])] = row['slot']
         team_results.append({
             'Rank': 0,
             'Team': team_name,
@@ -206,6 +211,10 @@ def load_all_data():
     all_players['starter'] = all_players.apply(
         lambda r: r['player_name'] in lineup_assignments.get(r['team_name'], set()), axis=1)
 
+    # Tag slot assignments
+    all_players['slot'] = all_players.apply(
+        lambda r: slot_lookup.get((r['team_name'], r['player_name']), 'Bench'), axis=1)
+
     return all_players, standings, datetime.now()
 
 
@@ -216,6 +225,7 @@ with st.sidebar:
     page = st.radio("Navigate", [
         "Standings",
         "Team Detail",
+        "Positional Breakdown",
         "Player Search",
         "Head to Head"
     ])
@@ -259,7 +269,7 @@ if page == "Standings":
         </div>''', unsafe_allow_html=True)
 
     st.markdown('<p class="section-header">Full Standings</p>', unsafe_allow_html=True)
-    st.dataframe(standings, width='stretch', hide_index=True)
+    st.dataframe(standings, width='stretch', hide_index=True, height=458)
 
 
 # ── 2. Team Detail ────────────────────────────────────────────────────────────
@@ -267,7 +277,8 @@ elif page == "Team Detail":
     st.markdown("# Team Detail")
 
     team_names = sorted(all_players['team_name'].unique())
-    selected_team = st.selectbox("Select Team", team_names)
+    default_team_idx = team_names.index('Large Farva') if 'Large Farva' in team_names else 0
+    selected_team = st.selectbox("Select Team", team_names, index=default_team_idx)
 
     team_data = all_players[all_players['team_name'] == selected_team].copy()
     team_standing = standings[standings['Team'] == selected_team].iloc[0]
@@ -314,8 +325,89 @@ elif page == "Team Detail":
     bench['Proj FPTS'] = bench['Proj FPTS'].round(1)
     st.dataframe(bench, width='stretch', hide_index=True)
 
+# ── 3. Positional Breakdown ───────────────────────────────────────────────────
+elif page == "Positional Breakdown":
+    st.markdown("# Positional Breakdown")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    ⚠️ Beware Ohtani, who masquerades as all SP points — his hitting projection is baked into his pitching row since Ottoneu lists him as a pitcher only.
+    </p>
+    """, unsafe_allow_html=True)
+    st.markdown("Projected FPTS by position slot for each team's optimized lineup.")
 
-# ── 3. Player Search ──────────────────────────────────────────────────────────
+    # Define slot groups and display order
+    slot_order = ['C', '1B', '2B', 'SS', '3B', 'MI', 
+                  'OF1', 'OF2', 'OF3', 'OF4', 'OF5', 'Util',
+                  'SP1', 'SP2', 'SP3', 'SP4', 'SP5',
+                  'RP1', 'RP2', 'RP3', 'RP4', 'RP5',
+                  'Bench']
+
+    # Build breakdown table
+    rows = []
+    for team_name, team_df in all_players.groupby('team_name'):
+        team_standing = standings[standings['Team'] == team_name].iloc[0]
+        row = {'Team': team_name, 'Rank': int(team_standing['Rank'])}
+        
+        # Starters by slot
+        for slot in slot_order[:-1]:  # exclude Bench
+            slot_players = team_df[team_df['slot'] == slot]
+            row[slot] = round(slot_players['FPTS'].sum(), 0) if len(slot_players) > 0 else 0
+        
+        # Bench total
+        bench_players = team_df[team_df['slot'] == 'Bench']
+        row['Bench'] = round(bench_players['FPTS'].sum(), 0)
+        
+        rows.append(row)
+
+    breakdown_df = pd.DataFrame(rows)
+    breakdown_df = breakdown_df.sort_values('Rank').reset_index(drop=True)
+    
+    # Reorder columns
+    cols = ['Rank', 'Team'] + slot_order
+    breakdown_df = breakdown_df[cols]
+
+    st.dataframe(breakdown_df, width='stretch', hide_index=True, height=458)
+
+    st.markdown('<p class="section-header">Position Group Totals</p>', unsafe_allow_html=True)
+
+    # Summarized version grouping by position type
+    group_rows = []
+    for team_name, team_df in all_players.groupby('team_name'):
+        team_standing = standings[standings['Team'] == team_name].iloc[0]
+        
+        catcher = team_df[team_df['slot'] == 'C']['FPTS'].sum()
+        infield = team_df[team_df['slot'].isin(['1B','2B','SS','3B','MI'])]['FPTS'].sum()
+        util = team_df[team_df['slot'] == 'Util']['FPTS'].sum()
+        outfield = team_df[team_df['slot'].isin(['OF1','OF2','OF3','OF4','OF5'])]['FPTS'].sum()
+        sp = team_df[team_df['slot'].isin(['SP1','SP2','SP3','SP4','SP5'])]['FPTS'].sum()
+        rp = team_df[team_df['slot'].isin(['RP1','RP2','RP3','RP4','RP5'])]['FPTS'].sum()
+        bench = team_df[team_df['slot'] == 'Bench']['FPTS'].sum()
+
+        util_players = team_df[team_df['slot'] == 'Util']
+        util_to_infield = util_players[
+            util_players['position'].str.contains('1B|2B|SS|3B', na=False)]['FPTS'].sum()
+        util_to_c = util_players[
+            util_players['position'].str.contains('C', na=False) &
+            ~util_players['position'].str.contains('1B|2B|SS|3B|OF', na=False)]['FPTS'].sum()
+        util_to_of = util_players[
+            util_players['position'].str.contains('OF', na=False) &
+            ~util_players['position'].str.contains('1B|2B|SS|3B', na=False)]['FPTS'].sum()
+
+        group_rows.append({
+            'Rank': int(team_standing['Rank']),
+            'Team': team_name,
+            'C': round(catcher + util_to_c, 0),
+            'Infield': round(infield + util_to_infield, 0),
+            'Outfield': round(outfield + util_to_of, 0),
+            'SP': round(sp, 0),
+            'RP': round(rp, 0),
+            'Bench': round(bench, 0),
+        })
+
+    group_df = pd.DataFrame(group_rows).sort_values('Rank').reset_index(drop=True)
+    st.dataframe(group_df, width='stretch', hide_index=True, height=458)
+
+# ── 4. Player Search ──────────────────────────────────────────────────────────
 elif page == "Player Search":
     st.markdown("# Player Search")
 
@@ -339,14 +431,15 @@ elif page == "Player Search":
                     unsafe_allow_html=True)
 
 
-# ── 4. Head to Head ───────────────────────────────────────────────────────────
+# ── 5. Head to Head ───────────────────────────────────────────────────────────
 elif page == "Head to Head":
     st.markdown("# Head to Head")
 
     team_names = sorted(all_players['team_name'].unique())
     col1, col2 = st.columns(2)
     with col1:
-        team_a = st.selectbox("Team A", team_names, index=0)
+        default_idx = team_names.index('Large Farva') if 'Large Farva' in team_names else 0
+        team_a = st.selectbox("Team A", team_names, index=default_idx)
     with col2:
         team_b = st.selectbox("Team B", team_names, index=1)
 
