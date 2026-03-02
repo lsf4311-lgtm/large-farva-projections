@@ -131,13 +131,13 @@ def load_all_data():
     rosters = get_league_rosters()
 
     # Projections
-    atc_hitting = pd.read_csv(f'{DATA_DIR}\\fangraphs-leaderboard-projections_oopsy hitting 2026.csv')
-    atc_pitching = pd.read_csv(f'{DATA_DIR}\\fangraphs-leaderboard-projections_oopsy pitching 2026.csv')
+    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv'))
+    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy pitching 2026.csv'))
     atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'})
     atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'})
 
     # Crosswalk
-    crosswalk = pd.read_csv(f'{DATA_DIR}\\sfbb_crosswalk.csv')
+    crosswalk = pd.read_csv(os.path.join(DATA_DIR, 'sfbb_crosswalk.csv'))
     crosswalk = crosswalk.drop_duplicates(subset='OTTONEUID')
     crosswalk['OTTONEUID'] = crosswalk['OTTONEUID'].fillna('').apply(
         lambda x: str(int(float(x))) if x != '' else '').str.strip()

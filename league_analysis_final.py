@@ -222,16 +222,16 @@ if __name__ == "__main__":
 
     # 1. Scrape rosters
     rosters = get_league_rosters()
-    rosters.to_csv(f'{DATA_DIR}\\league_rosters.csv', index=False)
+    rosters.to_csv(os.path.join(DATA_DIR, 'league_rosters.csv'), index=False)
 
     # 2. Load projections
-    atc_hitting = pd.read_csv(f'{DATA_DIR}\\fangraphs-leaderboard-projections_oopsy hitting 2026.csv')
-    atc_pitching = pd.read_csv(f'{DATA_DIR}\\fangraphs-leaderboard-projections_oopsy pitching 2026.csv')
+    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv'))
+    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy pitching 2026.csv'))
     atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'})
     atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'})
 
     # 3. Load and clean crosswalk
-    crosswalk = pd.read_csv(f'{DATA_DIR}\\sfbb_crosswalk.csv')
+    crosswalk = pd.read_csv(os.path.join(DATA_DIR, 'sfbb_crosswalk.csv'))
     crosswalk = crosswalk.drop_duplicates(subset='OTTONEUID')
     crosswalk['OTTONEUID'] = crosswalk['OTTONEUID'].fillna('').apply(
         lambda x: str(int(float(x))) if x != '' else '').str.strip()
@@ -283,7 +283,7 @@ if __name__ == "__main__":
             all_players_projected.loc[mask, 'FPTS'] = match_row['FPTS']
 
     # 9. Save full player projections
-    all_players_projected.to_csv(f'{DATA_DIR}\\players_with_projections.csv', index=False)
+    all_players_projected.to_csv(os.path.join(DATA_DIR, 'players_with_projections.csv'), index=False)
 
     # 10. Optimize lineups and build standings
     print("\nOptimizing lineups...")
@@ -307,4 +307,4 @@ if __name__ == "__main__":
     print("\n=== 2026 Projected Standings (Optimized Lineups) ===")
     print(team_projections.to_string())
 
-    team_projections.to_csv(f'{DATA_DIR}\\team_projections.csv', index=True)
+    team_projections.to_csv(os.path.join(DATA_DIR, 'team_projections.csv'), index=True)
