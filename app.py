@@ -6,7 +6,7 @@ import os
 
 # ── Page Config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Ottoneu War Room",
+    page_title="Farva Operations Center",
     page_icon="⚾",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -220,7 +220,7 @@ def load_all_data():
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## ⚾ War Room")
+    st.markdown("## ⚾ Farva Operations Center")
     st.markdown("---")
     page = st.radio("Navigate", [
         "Standings",
