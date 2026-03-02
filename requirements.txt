@@ -3,5 +3,6 @@ pandas
 beautifulsoup4
 rapidfuzz
 pulp
-streamlit
+streamlit==1.32.0
+altair==4.2.2
 lxml
