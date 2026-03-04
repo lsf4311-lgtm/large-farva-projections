@@ -123,8 +123,19 @@ from league_analysis_final import (
 )
 
 # ── Data Loading (cached weekly) ──────────────────────────────────────────────
+PROJECTION_FILES = {
+    'OOPSY': {
+        'hitting': 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv',
+        'pitching': 'fangraphs-leaderboard-projections_oopsy pitching 2026.csv',
+    },
+    'ATC': {
+        'hitting': 'fangraphs-leaderboard-projections_2026 hitting_atc.csv',
+        'pitching': 'fangraphs-leaderboard-projections_2026 pitching_atc.csv',
+    },
+}
+
 @st.cache_data(ttl=604800)
-def load_all_data():
+def load_all_data(projection_system='OOPSY'):
     """Run the full pipeline and return projected players + standings."""
     # Rosters - with fallback to cached CSV
     try:
@@ -136,9 +147,10 @@ def load_all_data():
         rosters = pd.read_csv(os.path.join(DATA_DIR, 'league_rosters.csv'))
         roster_source = 'cached'
 
-    # Projections
-    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv'))
-    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy pitching 2026.csv'))
+    # Projections — load whichever system was selected
+    proj_files = PROJECTION_FILES[projection_system]
+    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, proj_files['hitting']))
+    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, proj_files['pitching']))
     atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'})
     atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'})
 
@@ -237,15 +249,11 @@ def load_all_data():
     free_agents = free_agents[['Name', 'FPTS', 'player_type']].rename(columns={'Name': 'player_name'})
     free_agents = free_agents.sort_values('FPTS', ascending=False).reset_index(drop=True)
 
-    return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, datetime.now()
+    return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, datetime.now(), projection_system
 
 
 
-# ── Load Data ─────────────────────────────────────────────────────────────────
-with st.spinner("Loading league data..."):
-    all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, last_updated = load_all_data()
-
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sidebar (projection toggle must be declared BEFORE data load) ─────────────
 with st.sidebar:
     st.markdown("## ⚾ Farva Operations Center")
     st.markdown("---")
@@ -259,6 +267,16 @@ with st.sidebar:
     ])
     st.markdown("---")
 
+    # Projection system toggle
+    proj_system = st.selectbox(
+        "Projection System",
+        ["OOPSY", "ATC"],
+        index=0,
+        help="OOPSY = Ottoneu-optimized preseason projections. ATC = Average of ATC projections from FanGraphs."
+    )
+
+    st.markdown("---")
+
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
         st.rerun()
@@ -266,6 +284,12 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<p class="metric-label">Data Freshness</p>', unsafe_allow_html=True)
 
+# ── Load Data ─────────────────────────────────────────────────────────────────
+with st.spinner("Loading league data..."):
+    all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, last_updated, active_proj_system = load_all_data(proj_system)
+
+# ── Sidebar (data-dependent widgets rendered after load) ──────────────────────
+with st.sidebar:
     # Roster freshness
     timestamp_path = os.path.join(DATA_DIR, 'roster_scrape_timestamp.txt')
     try:
@@ -278,11 +302,12 @@ with st.sidebar:
     except:
         st.markdown('<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Rosters: unknown</p>', unsafe_allow_html=True)
 
-    # Projection freshness
+    # Projection freshness — reflects whichever system is active
     try:
-        proj_path = os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv')
+        proj_files = PROJECTION_FILES[active_proj_system]
+        proj_path = os.path.join(DATA_DIR, proj_files['hitting'])
         proj_ts = datetime.fromtimestamp(os.path.getmtime(proj_path)).strftime('%Y-%m-%d')
-        st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Projections (OOPSY)<br>{proj_ts}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Projections ({active_proj_system})<br>{proj_ts}</p>', unsafe_allow_html=True)
     except:
         st.markdown('<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Projections: unknown</p>', unsafe_allow_html=True)
 
@@ -292,9 +317,9 @@ with st.sidebar:
 # ── 1. Standings ──────────────────────────────────────────────────────────────
 if page == "Standings":
     st.markdown("# Projected Standings")
-    st.markdown("""
+    st.markdown(f"""
     <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
-    All data based on 2026 OOPSY preseason, and team-level projections optimized to consider starters vs. bench players. Though, don't take data at face value - may be lurking inaccuracies.
+    All data based on 2026 {active_proj_system} preseason projections, with team-level totals optimized across starters vs. bench. Don't take data at face value — may be lurking inaccuracies.
     </p>
     """, unsafe_allow_html=True)
     st.markdown(f'<p class="last-updated">Last updated: {last_updated.strftime("%b %d, %Y %I:%M %p")}</p>',
