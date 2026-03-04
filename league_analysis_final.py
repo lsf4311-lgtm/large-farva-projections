@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from rapidfuzz import process, fuzz
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary, value, PULP_CBC_CMD
 import time
+from datetime import datetime
 
 # ── Configuration ────────────────────────────────────────────────────────────
 LEAGUE_ID = "569"
@@ -100,6 +101,12 @@ def get_league_rosters():
 
     df = pd.DataFrame(all_players)
     print(f"\nTotal players scraped: {len(df)} across {df['team_name'].nunique()} teams")
+
+    # Save timestamp of successful scrape
+    timestamp_path = os.path.join(DATA_DIR, 'roster_scrape_timestamp.txt')
+    with open(timestamp_path, 'w') as f:
+        f.write(datetime.now().strftime('%Y-%m-%d %H:%M'))
+    
     return df
 
 

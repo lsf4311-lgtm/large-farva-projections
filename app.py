@@ -11,7 +11,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.write("App loaded")
 
 # ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -127,8 +126,15 @@ from league_analysis_final import (
 @st.cache_data(ttl=604800)
 def load_all_data():
     """Run the full pipeline and return projected players + standings."""
-    # Rosters
-    rosters = get_league_rosters()
+    # Rosters - with fallback to cached CSV
+    try:
+        rosters = get_league_rosters()
+        rosters.to_csv(os.path.join(DATA_DIR, 'league_rosters.csv'), index=False)
+        roster_source = 'live'
+    except Exception as e:
+        print(f"Live scrape failed: {e}. Falling back to cached rosters.")
+        rosters = pd.read_csv(os.path.join(DATA_DIR, 'league_rosters.csv'))
+        roster_source = 'cached'
 
     # Projections
     atc_hitting = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv'))
@@ -214,9 +220,30 @@ def load_all_data():
     # Tag slot assignments
     all_players['slot'] = all_players.apply(
         lambda r: slot_lookup.get((r['team_name'], r['player_name']), 'Bench'), axis=1)
+    # Identify free agents - players in projections but not on any roster
+    rostered_fg_ids = set(rosters_with_fgid['IDFANGRAPHS'].dropna().tolist())
+    
+    # Hitting free agents
+    fa_hitting = atc_hitting[~atc_hitting['fg_id'].isin(rostered_fg_ids)].copy()
+    fa_hitting['player_type'] = 'hitters'
+    
+    # Pitching free agents
+    fa_pitching = atc_pitching[~atc_pitching['fg_id'].isin(rostered_fg_ids)].copy()
+    fa_pitching['player_type'] = 'pitchers'
+    
+    # Combine and clean
+    free_agents = pd.concat([fa_hitting, fa_pitching], ignore_index=True)
+    free_agents = free_agents[free_agents['FPTS'] > 0].copy()
+    free_agents = free_agents[['Name', 'FPTS', 'player_type']].rename(columns={'Name': 'player_name'})
+    free_agents = free_agents.sort_values('FPTS', ascending=False).reset_index(drop=True)
 
-    return all_players, standings, datetime.now()
+    return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, datetime.now()
 
+
+
+# ── Load Data ─────────────────────────────────────────────────────────────────
+with st.spinner("Loading league data..."):
+    all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, last_updated = load_all_data()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -226,6 +253,7 @@ with st.sidebar:
         "Standings",
         "Team Detail",
         "Positional Breakdown",
+        "Free Agent Targets",
         "Player Search",
         "Head to Head"
     ])
@@ -235,9 +263,29 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-# ── Load Data ─────────────────────────────────────────────────────────────────
-with st.spinner("Loading league data..."):
-    all_players, standings, last_updated = load_all_data()
+    st.markdown("---")
+    st.markdown('<p class="metric-label">Data Freshness</p>', unsafe_allow_html=True)
+
+    # Roster freshness
+    timestamp_path = os.path.join(DATA_DIR, 'roster_scrape_timestamp.txt')
+    try:
+        with open(timestamp_path, 'r') as f:
+            roster_ts = f.read().strip()
+        if roster_source == 'cached':
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #f59e0b;">⚠️ Rosters (cached)<br>{roster_ts}</p>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Rosters (live)<br>{roster_ts}</p>', unsafe_allow_html=True)
+    except:
+        st.markdown('<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Rosters: unknown</p>', unsafe_allow_html=True)
+
+    # Projection freshness
+    try:
+        proj_path = os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv')
+        proj_ts = datetime.fromtimestamp(os.path.getmtime(proj_path)).strftime('%Y-%m-%d')
+        st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Projections (OOPSY)<br>{proj_ts}</p>', unsafe_allow_html=True)
+    except:
+        st.markdown('<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Projections: unknown</p>', unsafe_allow_html=True)
+
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
@@ -412,7 +460,166 @@ elif page == "Positional Breakdown":
     group_df = pd.DataFrame(group_rows).sort_values('Rank').reset_index(drop=True)
     st.dataframe(group_df, width='stretch', hide_index=True, height=458)
 
-# ── 4. Player Search ──────────────────────────────────────────────────────────
+# ── 4. Free Agent Targets ─────────────────────────────────────────────────────
+elif page == "Free Agent Targets":
+    st.markdown("# Free Agent Targets")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    Unrostered players ranked by projected FPTS. Section 1 shows the best available upgrade at each position vs your current roster depth.
+    </p>
+    """, unsafe_allow_html=True)
+
+    # Team selector
+    team_names = sorted(all_players['team_name'].unique())
+    default_idx = team_names.index('Large Farva') if 'Large Farva' in team_names else 0
+    selected_team = st.selectbox("Compare against team", team_names, index=default_idx)
+
+    # Get selected team's roster
+    my_roster = all_players[all_players['team_name'] == selected_team].copy()
+
+    # Position slot definitions for comparison
+    hitting_positions = ['C', '1B', '2B', 'SS', '3B', 'OF']
+    pitching_positions = ['SP', 'RP']
+
+    def get_weakest_at_position(roster_df, pos):
+        """Get weakest rostered player at a given position."""
+        if pos == 'OF':
+            eligible = roster_df[roster_df['position'].str.contains('OF', na=False)]
+        elif pos in ['SP', 'RP']:
+            eligible = roster_df[roster_df['position'].str.contains(pos, na=False)]
+        else:
+            eligible = roster_df[roster_df['position'].str.contains(f'(?<![A-Z]){pos}(?![A-Z])', na=False, regex=True)]
+        
+        if len(eligible) == 0:
+            return None, 0
+        
+        weakest = eligible.nsmallest(1, 'FPTS').iloc[0]
+        return weakest['player_name'], weakest['FPTS']
+
+    def get_best_fa_at_position(fa_df, pos):
+        """Get best free agent at a given position."""
+        if pos == 'OF':
+            eligible = fa_df[fa_df['position'].str.contains('OF', na=False)]
+        elif pos in ['SP', 'RP']:
+            eligible = fa_df[fa_df['position'].str.contains(pos, na=False)]
+        else:
+            eligible = fa_df[fa_df['position'].str.contains(f'(?<![A-Z]){pos}(?![A-Z])', na=False, regex=True)]
+        
+        if len(eligible) == 0:
+            return None, 0
+        
+        best = eligible.nlargest(1, 'FPTS').iloc[0]
+        return best['player_name'], best['FPTS']
+
+    # Build free agents with position info
+    rostered_fg_ids = set(rosters_with_fgid['IDFANGRAPHS'].dropna().tolist())
+    rostered_names = set(all_players['player_name'].str.lower().tolist())
+
+    # We need position info for FAs - get from crosswalk or projection file
+    fa_hitting_raw = atc_hitting[
+        (~atc_hitting['fg_id'].isin(rostered_fg_ids)) &
+        (~atc_hitting['Name'].str.lower().isin(rostered_names)) &
+        (atc_hitting['FPTS'] > 0)
+    ].copy()
+
+    fa_pitching_raw = atc_pitching[
+        (~atc_pitching['fg_id'].isin(rostered_fg_ids)) &
+        (~atc_pitching['Name'].str.lower().isin(rostered_names)) &
+        (atc_pitching['FPTS'] > 0)
+    ].copy()
+
+    # Add position info from crosswalk
+    crosswalk_pos = crosswalk[['IDFANGRAPHS', 'POS', 'ALLPOS']].copy() if 'ALLPOS' in crosswalk.columns else crosswalk[['IDFANGRAPHS', 'POS']].copy()
+    
+    fa_hitting_raw = fa_hitting_raw.merge(
+        crosswalk_pos, left_on='fg_id', right_on='IDFANGRAPHS', how='left')
+    fa_pitching_raw = fa_pitching_raw.merge(
+        crosswalk_pos, left_on='fg_id', right_on='IDFANGRAPHS', how='left')
+
+    fa_hitting_raw['player_type'] = 'hitters'
+    fa_pitching_raw['player_type'] = 'pitchers'
+    fa_hitting_raw = fa_hitting_raw.rename(columns={'Name': 'player_name'})
+    fa_pitching_raw = fa_pitching_raw.rename(columns={'Name': 'player_name'})
+
+    # Use POS column for position if available
+    pos_col = 'ALLPOS' if 'ALLPOS' in fa_hitting_raw.columns else 'POS'
+    fa_hitting_raw['position'] = fa_hitting_raw[pos_col].fillna('')
+    fa_pitching_raw['position'] = fa_pitching_raw[pos_col].fillna('')
+
+    free_agents_full = pd.concat([fa_hitting_raw, fa_pitching_raw], ignore_index=True)
+
+    # ── Section 1: Best Available by Position ─────────────────────────────────
+    st.markdown('<p class="section-header">Best Available by Position</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Comparing against full roster (starters + bench) for {selected_team}</p>', unsafe_allow_html=True)
+
+    upgrade_rows = []
+    for pos in hitting_positions + pitching_positions:
+        best_fa_name, best_fa_fpts = get_best_fa_at_position(free_agents_full, pos)
+        weakest_name, weakest_fpts = get_weakest_at_position(my_roster, pos)
+
+        if best_fa_name is None:
+            continue
+
+        gain = round(best_fa_fpts - weakest_fpts, 1)
+        upgrade_rows.append({
+            'POS': pos,
+            'Best Available FA': best_fa_name,
+            'FA FPTS': round(best_fa_fpts, 1),
+            'Weakest Rostered': weakest_name or 'None',
+            'Rostered FPTS': round(weakest_fpts, 1),
+            'Gain': gain
+        })
+
+    upgrade_df = pd.DataFrame(upgrade_rows)
+    upgrade_df['FA FPTS'] = upgrade_df['FA FPTS'].apply(lambda x: f"{float(x):.1f}")
+    upgrade_df['Rostered FPTS'] = upgrade_df['Rostered FPTS'].apply(lambda x: f"{float(x):.1f}")
+    upgrade_df['Gain'] = upgrade_df['Gain'].apply(lambda x: f"{float(x):.1f}")
+    
+    def color_gain(val):
+        try:
+            if float(val) > 0:
+                return 'color: #22c55e'
+            elif float(val) < 0:
+                return 'color: #ef4444'
+        except:
+            pass
+        return ''
+
+    st.dataframe(
+        upgrade_df.style.applymap(color_gain, subset=['Gain']),
+        width='stretch',
+        hide_index=True
+    )
+
+    # ── Section 2: Full Free Agent List ──────────────────────────────────────
+    st.markdown('<p class="section-header">Full Free Agent List</p>', unsafe_allow_html=True)
+
+    all_positions_filter = ['All', 'C', '1B', '2B', 'SS', '3B', 'OF', 'SP', 'RP']
+    selected_pos = st.selectbox("Filter by Position", all_positions_filter)
+
+    fa_display = free_agents_full.copy()
+
+    if selected_pos != 'All':
+        if selected_pos in ['SP', 'RP']:
+            fa_display = fa_display[fa_display['player_type'] == 'pitchers']
+            fa_display = fa_display[fa_display['position'].str.contains(selected_pos, na=False)]
+        else:
+            fa_display = fa_display[fa_display['player_type'] == 'hitters']
+            fa_display = fa_display[fa_display['position'].str.contains(
+                f'(?<![A-Z]){selected_pos}(?![A-Z])', na=False, regex=True)]
+
+    fa_display = fa_display.sort_values('FPTS', ascending=False).head(50)[[
+        'player_name', 'position', 'FPTS'
+    ]].rename(columns={
+        'player_name': 'Player',
+        'position': 'POS',
+        'FPTS': 'Proj FPTS'
+    })
+    fa_display['Proj FPTS'] = fa_display['Proj FPTS'].round(1)
+
+    st.dataframe(fa_display, width='stretch', hide_index=True)
+
+# ── 5. Player Search ──────────────────────────────────────────────────────────
 elif page == "Player Search":
     st.markdown("# Player Search")
 
@@ -436,7 +643,7 @@ elif page == "Player Search":
                     unsafe_allow_html=True)
 
 
-# ── 5. Head to Head ───────────────────────────────────────────────────────────
+# ── 6. Head to Head ───────────────────────────────────────────────────────────
 elif page == "Head to Head":
     st.markdown("# Head to Head")
 
