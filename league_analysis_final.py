@@ -53,6 +53,14 @@ PROJECTION_ENDPOINTS = {
         'hitting': {'type': 'atc', 'stats': 'bat'},
         'pitching': {'type': 'atc', 'stats': 'pit'},
     },
+    'OOPSY DC': {
+        'hitting': {'type': 'oopsydc', 'stats': 'bat'},
+        'pitching': {'type': 'oopsydc', 'stats': 'pit'},
+    },
+    'ATC DC': {
+        'hitting': {'type': 'atcdc', 'stats': 'bat'},
+        'pitching': {'type': 'atcdc', 'stats': 'pit'},
+    },
 }
 
 def get_fangraphs_session(username, password):

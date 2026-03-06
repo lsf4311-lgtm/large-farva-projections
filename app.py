@@ -132,6 +132,14 @@ PROJECTION_FILES = {
         'hitting': 'fangraphs-leaderboard-projections_2026 hitting_atc.csv',
         'pitching': 'fangraphs-leaderboard-projections_2026 pitching_atc.csv',
     },
+    'OOPSY DC': {
+        'hitting': 'fangraphs-leaderboard-projections_oopsydc hitting 2026.csv',
+        'pitching': 'fangraphs-leaderboard-projections_oopsydc pitching 2026.csv',
+    },
+    'ATC DC': {
+        'hitting': 'fangraphs-leaderboard-projections_atcdc hitting 2026.csv',
+        'pitching': 'fangraphs-leaderboard-projections_atcdc pitching 2026.csv',
+    },
 }
 
 @st.cache_data(ttl=604800)
@@ -306,9 +314,9 @@ with st.sidebar:
     # Projection system toggle
     proj_system = st.selectbox(
         "Projection System",
-        ["OOPSY", "ATC"],
+        ["OOPSY", "ATC", "OOPSY DC", "ATC DC"],
         index=0,
-        help="OOPSY = Ottoneu-optimized preseason projections. ATC = Average of ATC projections from FanGraphs."
+        help="OOPSY/ATC = preseason. OOPSY DC/ATC DC = in-season (unlocks Opening Day)."
     )
 
     st.markdown("---")
