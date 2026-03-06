@@ -14,13 +14,94 @@ if not os.path.exists(DATA_DIR):
     DATA_DIR = os.path.dirname(__file__)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.fangraphs.com/',
+    'Origin': 'https://www.fangraphs.com',
+    'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Microsoft Edge";v="144"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+}
+
 def make_api_request(url, timeout=30):
     try:
-        response = requests.get(url, timeout=timeout)
-        return response if response.status_code == 200 else None
+        response = requests.get(url, headers=HEADERS, timeout=timeout)
+        if response.status_code != 200:
+            print(f"  HTTP {response.status_code} for {url[:80]}...")
+            return None
+        return response
     except Exception as e:
         print(f"API request failed for {url}: {e}")
         return None
+
+
+# ── FA Position Scraper ───────────────────────────────────────────────────────
+# Hitter positions: scraped from FanGraphs JSON API (accurate, no auth needed)
+# Pitcher positions: handled via player_type in the projection CSVs (SP/RP
+#   eligibility is Ottoneu-specific and not available from FanGraphs API)
+HITTER_POSITIONS = ['c', '1b', '2b', 'ss', '3b', 'of']
+FANGRAPHS_API_URL = (
+    "https://www.fangraphs.com/api/leaders/major-league/data"
+    "?pos={pos}&stats=bat&lg=all&qual=0&season=2025&season1=2025"
+    "&month=0&team=0&pageitems=2000000000&pagenum=1&ind=0&rost=0"
+    "&type=8&fl={league_id}&ft=-1"
+)
+
+def get_fa_positions():
+    """Build an accurate fg_id -> position map for FA hitters using the
+    FanGraphs JSON API. Each position is a separate request; players eligible
+    at multiple positions get combined strings (e.g. '1B/OF').
+    Pitcher positions (SP/RP) are not included here — those are handled
+    downstream via player_type from the projection CSVs.
+    """
+    fa_pos_map = {}  # fg_id -> position string
+
+    for pos in HITTER_POSITIONS:
+        url = FANGRAPHS_API_URL.format(pos=pos, league_id=LEAGUE_ID)
+        response = make_api_request(url)
+        if not response:
+            print(f"  FA position fetch failed for {pos.upper()}")
+            time.sleep(2)
+            continue
+
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"  FA position JSON parse failed for {pos.upper()}: {e}")
+            time.sleep(2)
+            continue
+
+        # FanGraphs API returns {"data": [...], "count": N}
+        # Each row has a "playerid" field and a "PlayerName" field
+        rows = data.get('data', [])
+        if not rows:
+            print(f"  No data rows for {pos.upper()}")
+            time.sleep(2)
+            continue
+
+        pos_label = pos.upper()
+        count = 0
+        for row in rows:
+            fg_id = str(row.get('playerid', '')).strip()
+            if not fg_id or fg_id == 'nan':
+                continue
+            if fg_id in fa_pos_map:
+                if pos_label not in fa_pos_map[fg_id]:
+                    fa_pos_map[fg_id] = fa_pos_map[fg_id] + '/' + pos_label
+            else:
+                fa_pos_map[fg_id] = pos_label
+            count += 1
+
+        print(f"  FA positions fetched: {pos_label} ({count} players)")
+        time.sleep(1)
+
+    print(f"  Total FA hitter position entries: {len(fa_pos_map)}")
+    return fa_pos_map
 
 
 # ── Step 1: Scrape League Rosters ────────────────────────────────────────────

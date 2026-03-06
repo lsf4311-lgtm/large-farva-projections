@@ -119,7 +119,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from league_analysis_final import (
     get_league_rosters, fuzzy_match_players, optimize_lineup,
-    make_api_request, DATA_DIR, LEAGUE_ID
+    make_api_request, get_fa_positions, DATA_DIR, LEAGUE_ID
 )
 
 # ── Data Loading (cached weekly) ──────────────────────────────────────────────
@@ -234,19 +234,33 @@ def load_all_data(projection_system='OOPSY'):
         lambda r: slot_lookup.get((r['team_name'], r['player_name']), 'Bench'), axis=1)
     # Identify free agents - players in projections but not on any roster
     rostered_fg_ids = set(rosters_with_fgid['IDFANGRAPHS'].dropna().tolist())
-    
-    # Hitting free agents
+
+    # Scrape accurate hitter position eligibility from FanGraphs API
+    # (pitcher SP/RP eligibility is Ottoneu-specific; handled via player_type)
+    print("Fetching FA hitter positions from FanGraphs API...")
+    fa_pos_map = get_fa_positions()  # fg_id -> 'C', '1B/OF', etc. (hitters only)
+
+    # Hitting free agents — positions from FanGraphs API, crosswalk as fallback
     fa_hitting = atc_hitting[~atc_hitting['fg_id'].isin(rostered_fg_ids)].copy()
     fa_hitting['player_type'] = 'hitters'
-    
-    # Pitching free agents
+    fa_hitting['position'] = fa_hitting['fg_id'].map(fa_pos_map)
+
+    # Crosswalk fallback for any hitter missing from FanGraphs API (e.g. Burger)
+    crosswalk_pos_map = crosswalk.set_index('IDFANGRAPHS')['POS'].to_dict()
+    missing_pos = fa_hitting['position'].isna()
+    fa_hitting.loc[missing_pos, 'position'] = fa_hitting.loc[missing_pos, 'fg_id'].map(crosswalk_pos_map)
+    fa_hitting['position'] = fa_hitting['position'].fillna('')
+
+    # Pitching free agents — positions inferred from player_type
     fa_pitching = atc_pitching[~atc_pitching['fg_id'].isin(rostered_fg_ids)].copy()
     fa_pitching['player_type'] = 'pitchers'
-    
+    fa_pitching['position'] = 'SP/RP'  # crosswalk too stale for SP vs RP; both shown
+
     # Combine and clean
     free_agents = pd.concat([fa_hitting, fa_pitching], ignore_index=True)
     free_agents = free_agents[free_agents['FPTS'] > 0].copy()
-    free_agents = free_agents[['Name', 'FPTS', 'player_type']].rename(columns={'Name': 'player_name'})
+    free_agents = free_agents.rename(columns={'Name': 'player_name'})
+    free_agents = free_agents[['player_name', 'fg_id', 'FPTS', 'player_type', 'position']]
     free_agents = free_agents.sort_values('FPTS', ascending=False).reset_index(drop=True)
 
     return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, datetime.now(), projection_system
@@ -536,42 +550,8 @@ elif page == "Free Agent Targets":
         best = eligible.nlargest(1, 'FPTS').iloc[0]
         return best['player_name'], best['FPTS']
 
-    # Build free agents with position info
-    rostered_fg_ids = set(rosters_with_fgid['IDFANGRAPHS'].dropna().tolist())
-    rostered_names = set(all_players['player_name'].str.lower().tolist())
-
-    # We need position info for FAs - get from crosswalk or projection file
-    fa_hitting_raw = atc_hitting[
-        (~atc_hitting['fg_id'].isin(rostered_fg_ids)) &
-        (~atc_hitting['Name'].str.lower().isin(rostered_names)) &
-        (atc_hitting['FPTS'] > 0)
-    ].copy()
-
-    fa_pitching_raw = atc_pitching[
-        (~atc_pitching['fg_id'].isin(rostered_fg_ids)) &
-        (~atc_pitching['Name'].str.lower().isin(rostered_names)) &
-        (atc_pitching['FPTS'] > 0)
-    ].copy()
-
-    # Add position info from crosswalk
-    crosswalk_pos = crosswalk[['IDFANGRAPHS', 'POS', 'ALLPOS']].copy() if 'ALLPOS' in crosswalk.columns else crosswalk[['IDFANGRAPHS', 'POS']].copy()
-    
-    fa_hitting_raw = fa_hitting_raw.merge(
-        crosswalk_pos, left_on='fg_id', right_on='IDFANGRAPHS', how='left')
-    fa_pitching_raw = fa_pitching_raw.merge(
-        crosswalk_pos, left_on='fg_id', right_on='IDFANGRAPHS', how='left')
-
-    fa_hitting_raw['player_type'] = 'hitters'
-    fa_pitching_raw['player_type'] = 'pitchers'
-    fa_hitting_raw = fa_hitting_raw.rename(columns={'Name': 'player_name'})
-    fa_pitching_raw = fa_pitching_raw.rename(columns={'Name': 'player_name'})
-
-    # Use POS column for position if available
-    pos_col = 'ALLPOS' if 'ALLPOS' in fa_hitting_raw.columns else 'POS'
-    fa_hitting_raw['position'] = fa_hitting_raw[pos_col].fillna('')
-    fa_pitching_raw['position'] = fa_pitching_raw[pos_col].fillna('')
-
-    free_agents_full = pd.concat([fa_hitting_raw, fa_pitching_raw], ignore_index=True)
+    # free_agents already has accurate positions scraped from FanGraphs
+    free_agents_full = free_agents.copy()
 
     # ── Section 1: Best Available by Position ─────────────────────────────────
     st.markdown('<p class="section-header">Best Available by Position</p>', unsafe_allow_html=True)
