@@ -234,14 +234,17 @@ def load_all_data(projection_system='OOPSY'):
         lambda r: slot_lookup.get((r['team_name'], r['player_name']), 'Bench'), axis=1)
     # Identify free agents - players in projections but not on any roster
     rostered_fg_ids = set(rosters_with_fgid['IDFANGRAPHS'].dropna().tolist())
+    rostered_names = set(all_players['player_name'].str.lower().tolist())
 
-    # Scrape accurate hitter position eligibility from FanGraphs API
-    # (pitcher SP/RP eligibility is Ottoneu-specific; handled via player_type)
-    print("Fetching FA hitter positions from FanGraphs API...")
-    fa_pos_map = get_fa_positions()  # fg_id -> 'C', '1B/OF', etc. (hitters only)
+    # Scrape accurate position eligibility from FanGraphs API
+    print("Fetching FA positions from FanGraphs API...")
+    fa_pos_map = get_fa_positions()
 
-    # Hitting free agents — positions from FanGraphs API, crosswalk as fallback
-    fa_hitting = atc_hitting[~atc_hitting['fg_id'].isin(rostered_fg_ids)].copy()
+    # Hitting free agents — filter by fg_id AND name to catch crosswalk gaps
+    fa_hitting = atc_hitting[
+        (~atc_hitting['fg_id'].isin(rostered_fg_ids)) &
+        (~atc_hitting['Name'].str.lower().isin(rostered_names))
+    ].copy()
     fa_hitting['player_type'] = 'hitters'
     fa_hitting['position'] = fa_hitting['fg_id'].map(fa_pos_map)
 
@@ -251,10 +254,13 @@ def load_all_data(projection_system='OOPSY'):
     fa_hitting.loc[missing_pos, 'position'] = fa_hitting.loc[missing_pos, 'fg_id'].map(crosswalk_pos_map)
     fa_hitting['position'] = fa_hitting['position'].fillna('')
 
-    # Pitching free agents — positions inferred from player_type
-    fa_pitching = atc_pitching[~atc_pitching['fg_id'].isin(rostered_fg_ids)].copy()
+    # Pitching free agents — filter by fg_id AND name to catch crosswalk gaps
+    fa_pitching = atc_pitching[
+        (~atc_pitching['fg_id'].isin(rostered_fg_ids)) &
+        (~atc_pitching['Name'].str.lower().isin(rostered_names))
+    ].copy()
     fa_pitching['player_type'] = 'pitchers'
-    fa_pitching['position'] = 'SP/RP'  # crosswalk too stale for SP vs RP; both shown
+    fa_pitching['position'] = fa_pitching['fg_id'].map(fa_pos_map).fillna('SP/RP')
 
     # Combine and clean
     free_agents = pd.concat([fa_hitting, fa_pitching], ignore_index=True)
