@@ -40,6 +40,104 @@ def make_api_request(url, timeout=30):
         return None
 
 
+# ── FanGraphs Auth & Projection Fetcher ──────────────────────────────────────
+FG_LOGIN_URL = 'https://blogs.fangraphs.com/wp-login.php'
+FG_PROJ_URL = 'https://www.fangraphs.com/api/projections?type={type}&stats={stats}&pos=all&team=0&players=0&lg=all'
+
+PROJECTION_ENDPOINTS = {
+    'OOPSY': {
+        'hitting': {'type': 'oopsy', 'stats': 'bat'},
+        'pitching': {'type': 'oopsy', 'stats': 'pit'},
+    },
+    'ATC': {
+        'hitting': {'type': 'atc', 'stats': 'bat'},
+        'pitching': {'type': 'atc', 'stats': 'pit'},
+    },
+}
+
+def get_fangraphs_session(username, password):
+    """Log into FanGraphs via WordPress and return an authenticated session."""
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    # First GET the login page to grab the test cookie
+    session.get(FG_LOGIN_URL, timeout=30)
+
+    login_data = {
+        'log': username,
+        'pwd': password,
+        'wp-submit': 'Sign In',
+        'rememberme': 'forever',
+        'redirect_to': 'https://www.fangraphs.com/',
+        'testcookie': '1',
+    }
+
+    resp = session.post(
+        FG_LOGIN_URL,
+        data=login_data,
+        headers={
+            'Referer': FG_LOGIN_URL,
+            'Origin': 'https://blogs.fangraphs.com',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout=30,
+        allow_redirects=True
+    )
+
+    # Check we got a logged-in cookie (either wordpress_logged_in or wordpress_sec)
+    logged_in = any(
+        'wordpress_logged_in' in c or 'wordpress_sec' in c 
+        for c in session.cookies.keys()
+    )
+    if not logged_in:
+        raise Exception(f"FanGraphs login failed (status {resp.status_code})")
+
+    print("  FanGraphs login successful")
+    return session
+
+
+def fetch_projections(projection_system='OOPSY', username=None, password=None):
+    """Fetch projection data from FanGraphs API for the given system.
+    Returns (hitting_df, pitching_df) or raises on failure.
+    """
+    session = get_fangraphs_session(username, password)
+    endpoints = PROJECTION_ENDPOINTS[projection_system]
+    results = {}
+
+    for slot, params in endpoints.items():
+        url = FG_PROJ_URL.format(**params)
+        resp = session.get(url, timeout=30)
+        if resp.status_code != 200:
+            raise Exception(f"Projection fetch failed for {projection_system} {slot}: HTTP {resp.status_code}")
+
+        data = resp.json()
+        # API returns a list directly or {"data": [...]}
+        rows = data if isinstance(data, list) else data.get('data', [])
+        if not rows:
+            raise Exception(f"No projection data returned for {projection_system} {slot}")
+
+        df = pd.DataFrame(rows)
+        df = df.rename(columns={'playerid': 'fg_id', 'PlayerName': 'Name'})
+        # Ensure PlayerId rename also covered
+        if 'PlayerId' in df.columns:
+            df = df.rename(columns={'PlayerId': 'fg_id'})
+        df['fg_id'] = df['fg_id'].astype(str).str.strip()
+
+        # Ensure FPTS column exists
+        if 'FPTS' not in df.columns:
+            fpts_candidates = [c for c in df.columns if 'fpts' in c.lower() or 'pts' in c.lower()]
+            if fpts_candidates:
+                df = df.rename(columns={fpts_candidates[0]: 'FPTS'})
+            else:
+                raise Exception(f"No FPTS column found in {projection_system} {slot} projection data. Columns: {df.columns.tolist()}")
+
+        results[slot] = df
+        print(f"  Fetched {projection_system} {slot} projections: {len(df)} players")
+        time.sleep(1)
+
+    return results['hitting'], results['pitching']
+
+
 # ── FA Position Scraper ───────────────────────────────────────────────────────
 # Hitter positions: scraped from FanGraphs JSON API (accurate, no auth needed)
 # Pitcher positions: scraped from FanGraphs JSON API using stats=sta/rel

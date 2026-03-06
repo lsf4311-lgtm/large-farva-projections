@@ -119,7 +119,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from league_analysis_final import (
     get_league_rosters, fuzzy_match_players, optimize_lineup,
-    make_api_request, get_fa_positions, DATA_DIR, LEAGUE_ID
+    make_api_request, get_fa_positions, fetch_projections, DATA_DIR, LEAGUE_ID
 )
 
 # ── Data Loading (cached weekly) ──────────────────────────────────────────────
@@ -147,12 +147,28 @@ def load_all_data(projection_system='OOPSY'):
         rosters = pd.read_csv(os.path.join(DATA_DIR, 'league_rosters.csv'))
         roster_source = 'cached'
 
-    # Projections — load whichever system was selected
+    # Projections — try live fetch first, fall back to CSV
     proj_files = PROJECTION_FILES[projection_system]
-    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, proj_files['hitting']))
-    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, proj_files['pitching']))
-    atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'})
-    atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'})
+    proj_source = 'live'
+    try:
+        fg_user = st.secrets.get('FG_USER') or os.environ.get('FG_USER')
+        fg_pass = st.secrets.get('FG_PASS') or os.environ.get('FG_PASS')
+        if not fg_user or not fg_pass:
+            raise Exception("FanGraphs credentials not configured")
+        print(f"Fetching {projection_system} projections from FanGraphs...")
+        atc_hitting, atc_pitching = fetch_projections(projection_system, fg_user, fg_pass)
+        # Save fresh copies to disk as updated fallback
+        atc_hitting.to_csv(os.path.join(DATA_DIR, proj_files['hitting']), index=False)
+        atc_pitching.to_csv(os.path.join(DATA_DIR, proj_files['pitching']), index=False)
+        print(f"  Projections saved to disk")
+    except Exception as e:
+        print(f"Live projection fetch failed: {e}. Falling back to CSV.")
+        proj_source = 'cached'
+        atc_hitting = pd.read_csv(os.path.join(DATA_DIR, proj_files['hitting']))
+        atc_pitching = pd.read_csv(os.path.join(DATA_DIR, proj_files['pitching']))
+
+    atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'}) if 'PlayerId' in atc_hitting.columns else atc_hitting
+    atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'}) if 'PlayerId' in atc_pitching.columns else atc_pitching
 
     # Crosswalk
     crosswalk = pd.read_csv(os.path.join(DATA_DIR, 'sfbb_crosswalk.csv'))
@@ -269,7 +285,7 @@ def load_all_data(projection_system='OOPSY'):
     free_agents = free_agents[['player_name', 'fg_id', 'FPTS', 'player_type', 'position']]
     free_agents = free_agents.sort_values('FPTS', ascending=False).reset_index(drop=True)
 
-    return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, datetime.now(), projection_system
+    return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, proj_source, datetime.now(), projection_system
 
 
 
@@ -306,7 +322,7 @@ with st.sidebar:
 
 # ── Load Data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading league data..."):
-    all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, last_updated, active_proj_system = load_all_data(proj_system)
+    all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, proj_source, last_updated, active_proj_system = load_all_data(proj_system)
 
 # ── Sidebar (data-dependent widgets rendered after load) ──────────────────────
 with st.sidebar:
@@ -327,7 +343,10 @@ with st.sidebar:
         proj_files = PROJECTION_FILES[active_proj_system]
         proj_path = os.path.join(DATA_DIR, proj_files['hitting'])
         proj_ts = datetime.fromtimestamp(os.path.getmtime(proj_path)).strftime('%Y-%m-%d')
-        st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Projections ({active_proj_system})<br>{proj_ts}</p>', unsafe_allow_html=True)
+        if proj_source == 'cached':
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #f59e0b;">⚠️ Projections ({active_proj_system}, cached)<br>{proj_ts}</p>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">✓ Projections ({active_proj_system}, live)<br>{proj_ts}</p>', unsafe_allow_html=True)
     except:
         st.markdown('<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Projections: unknown</p>', unsafe_allow_html=True)
 
