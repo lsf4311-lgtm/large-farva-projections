@@ -119,7 +119,8 @@ sys.path.append(os.path.dirname(__file__))
 
 from league_analysis_final import (
     get_league_rosters, fuzzy_match_players, optimize_lineup,
-    make_api_request, get_fa_positions, fetch_projections, DATA_DIR, LEAGUE_ID
+    make_api_request, get_fa_positions, fetch_projections,
+    get_pitching_report, get_all_team_stats, DATA_DIR, LEAGUE_ID
 )
 
 # ── Data Loading (cached weekly) ──────────────────────────────────────────────
@@ -307,7 +308,8 @@ with st.sidebar:
         "Positional Breakdown",
         "Free Agent Targets",
         "Player Search",
-        "Head to Head"
+        "Head to Head",
+        "Pitching Report",
     ])
     st.markdown("---")
 
@@ -744,3 +746,166 @@ elif page == "Head to Head":
                     'salary': '$', 'FPTS': 'FPTS', 'starter': 'S'
                 })
                 st.dataframe(roster, width='stretch', hide_index=True)
+
+# ── 7. Pitching Report ────────────────────────────────────────────────────────
+elif page == "Pitching Report":
+    st.markdown("# Pitching Report")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    Weekly schedule, matchup grades, and season stats for your SP-eligible pitchers.
+    Pitcher stats refresh daily. Opponent team rankings refresh weekly (slow — ~2 min on first load).
+    </p>
+    """, unsafe_allow_html=True)
+
+    # ── Cached data loaders ───────────────────────────────────────────────────
+    @st.cache_data(ttl=604800, show_spinner="Loading team stats (this takes ~2 min on first load)...")
+    def load_team_stats():
+        return get_all_team_stats()
+
+    @st.cache_data(ttl=86400, show_spinner="Loading pitcher data...")
+    def load_pitching_report(pitcher_names_tuple):
+        team_stats = load_team_stats()
+        return get_pitching_report(list(pitcher_names_tuple), team_stats)
+
+    # ── Get Large Farva's SP-eligible pitchers from all_players ───────────────
+    my_pitchers = all_players[
+        (all_players['team_name'] == 'Large Farva') &
+        (all_players['player_type'] == 'pitchers') &
+        (all_players['position'].str.contains('SP', na=False))
+    ]['player_name'].tolist()
+
+    if not my_pitchers:
+        st.warning("No SP-eligible pitchers found on Large Farva's roster.")
+    else:
+        # Pass as tuple so it's hashable for cache key
+        report_data = load_pitching_report(tuple(sorted(my_pitchers)))
+
+        GRADE_COLORS = {'A': '#22c55e', 'B': '#86efac', 'C': '#94a3b8', 'D': '#f97316', 'F': '#ef4444'}
+        GRADE_ORDER = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'F': 4, '—': 5}
+
+        # ── Summary ranking table ─────────────────────────────────────────────
+        st.markdown('<p class="section-header">This Week\'s Starter Rankings</p>', unsafe_allow_html=True)
+        summary_rows = []
+        for pitcher in report_data:
+            matchups = pitcher['matchups']
+            games = len(matchups)
+            if matchups:
+                best_grade = min([m['grade'] for m in matchups], key=lambda g: GRADE_ORDER.get(g, 5))
+                opponents = ', '.join([f"{m['opponent']} ({m['home_away'][0]})" for m in matchups])
+            else:
+                best_grade = '—'
+                opponents = 'No games'
+            summary_rows.append({
+                'Pitcher': pitcher['name'],
+                'Games': games,
+                'Best Grade': best_grade,
+                'Matchups': opponents,
+            })
+
+        summary_rows.sort(key=lambda r: (GRADE_ORDER.get(r['Best Grade'], 5), -r['Games']))
+        summary_df = pd.DataFrame(summary_rows)
+
+        # Color-code the Best Grade column
+        def style_grade(val):
+            color = GRADE_COLORS.get(val, '#94a3b8')
+            return f'color: {color}; font-weight: 600;'
+
+        st.dataframe(
+            summary_df.style.applymap(style_grade, subset=['Best Grade']),
+            hide_index=True,
+            width='stretch'
+        )
+        st.markdown("---")
+
+        for pitcher in report_data:
+            name = pitcher['name']
+            stats = pitcher['stats']
+            schedule = pitcher['schedule']
+            rotation = pitcher['rotation']
+            matchups = pitcher['matchups']
+
+            st.markdown(f'<p class="section-header">{name}</p>', unsafe_allow_html=True)
+
+            # ── Top metrics row ───────────────────────────────────────────────
+            col1, col2, col3, col4, col5 = st.columns(5)
+            metrics = [
+                (col1, "IP", f"{stats.get('IP', '—')}"),
+                (col2, "K%", f"{stats.get('K_percent', '—')}%"),
+                (col3, "BB%", f"{stats.get('BB_percent', '—')}%"),
+                (col4, "wOBA Against", f"{stats.get('wOBA_against', '—')}"),
+                (col5, "Hard Hit%", f"{stats.get('hard_hit_percent', '—')}%"),
+            ]
+            for col, label, val in metrics:
+                with col:
+                    st.markdown(f'''<div class="metric-card">
+                        <div class="metric-label">{label}</div>
+                        <div class="metric-value" style="font-size:20px">{val}</div>
+                    </div>''', unsafe_allow_html=True)
+
+            st.markdown("")
+
+            # ── Rotation info ─────────────────────────────────────────────────
+            if rotation.get('is_starter'):
+                last = rotation.get('last_start')
+                nxt = rotation.get('next_predicted_start')
+                gap = rotation.get('avg_days_between_starts')
+                parts = []
+                if last:
+                    parts.append(f"Last start: **{last.strftime('%b %d')}**")
+                if gap:
+                    parts.append(f"Avg rest: **{gap} days**")
+                if nxt:
+                    parts.append(f"Next predicted: **{nxt.strftime('%b %d')}**")
+                if parts:
+                    st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">{" · ".join(parts)}</p>', unsafe_allow_html=True)
+
+            # ── Home/Away splits ──────────────────────────────────────────────
+            home_s = stats.get('home_splits', {})
+            away_s = stats.get('away_splits', {})
+            if home_s or away_s:
+                st.markdown('<p class="section-header">Home / Away Splits</p>', unsafe_allow_html=True)
+                splits_data = {
+                    'Split': ['Home', 'Away'],
+                    'IP': [home_s.get('innings', '—'), away_s.get('innings', '—')],
+                    'K%': [f"{home_s.get('K_percent', '—')}%", f"{away_s.get('K_percent', '—')}%"],
+                    'BB%': [f"{home_s.get('BB_percent', '—')}%", f"{away_s.get('BB_percent', '—')}%"],
+                    'wOBA Against': [home_s.get('wOBA_against', '—'), away_s.get('wOBA_against', '—')],
+                }
+                st.dataframe(pd.DataFrame(splits_data), hide_index=True, width='stretch')
+
+            # ── This week's matchups ──────────────────────────────────────────
+            if matchups:
+                st.markdown('<p class="section-header">This Week\'s Matchups</p>', unsafe_allow_html=True)
+                for m in matchups:
+                    grade = m['grade']
+                    grade_color = GRADE_COLORS.get(grade, '#94a3b8')
+                    opp_stats = m['opp_stats']
+                    rankings = m['rankings']
+
+                    mc1, mc2 = st.columns([1, 3])
+                    with mc1:
+                        st.markdown(f'''<div class="metric-card" style="text-align:center">
+                            <div class="metric-label">{m["date"]} · {m["home_away"]}</div>
+                            <div style="font-family: IBM Plex Mono, monospace; font-size: 32px; font-weight: 600; color: {grade_color};">{grade}</div>
+                            <div class="metric-label">vs {m["opponent"]}</div>
+                        </div>''', unsafe_allow_html=True)
+                    with mc2:
+                        if opp_stats:
+                            opp_rows = []
+                            stat_labels = {'OPS': 'OPS', 'wOBA': 'wOBA', 'K_percent': 'K%', 'HR_rate': 'HR%'}
+                            for stat_key, stat_label in stat_labels.items():
+                                val = opp_stats.get(stat_key, '—')
+                                rank_info = rankings.get(stat_key, {})
+                                rank_str = f"#{rank_info['rank']}/{rank_info['total']}" if rank_info else '—'
+                                opp_rows.append({'Stat': stat_label, f'{m["opponent"]} ({m["home_away"]})': val, 'Rank': rank_str})
+                            st.dataframe(pd.DataFrame(opp_rows), hide_index=True, width='stretch')
+                        else:
+                            st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">No opponent stats available yet (season not started)</p>', unsafe_allow_html=True)
+
+                    st.markdown("")
+            elif schedule:
+                st.markdown(f'<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">No games this week for {schedule.get("team_name", name)}\'s team.</p>', unsafe_allow_html=True)
+            else:
+                st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">Could not load schedule.</p>', unsafe_allow_html=True)
+
+            st.markdown("---")
