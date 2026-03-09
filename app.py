@@ -141,6 +141,14 @@ PROJECTION_FILES = {
         'hitting': 'fangraphs-leaderboard-projections_atcdc hitting 2026.csv',
         'pitching': 'fangraphs-leaderboard-projections_atcdc pitching 2026.csv',
     },
+    'THE BAT X': {
+        'hitting': 'fangraphs-leaderboard-projections_thebatx hitting 2026.csv',
+        'pitching': 'fangraphs-leaderboard-projections_thebatx pitching 2026.csv',
+    },
+    'THE BAT X DC': {
+        'hitting': 'fangraphs-leaderboard-projections_thebatxdc hitting 2026.csv',
+        'pitching': 'fangraphs-leaderboard-projections_thebatxdc pitching 2026.csv',
+    },
 }
 
 @st.cache_data(ttl=604800)
@@ -316,9 +324,9 @@ with st.sidebar:
     # Projection system toggle
     proj_system = st.selectbox(
         "Projection System",
-        ["OOPSY", "ATC", "OOPSY DC", "ATC DC"],
+        ["OOPSY", "ATC", "THE BAT X", "OOPSY DC", "ATC DC", "THE BAT X DC"],
         index=0,
-        help="OOPSY/ATC = preseason. OOPSY DC/ATC DC = in-season (unlocks Opening Day)."
+        help="OOPSY/ATC/THE BAT X = preseason. DC variants = in-season (unlocks Opening Day)."
     )
 
     st.markdown("---")
