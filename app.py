@@ -322,12 +322,21 @@ with st.sidebar:
     st.markdown("---")
 
     # Projection system toggle
-    proj_system = st.selectbox(
+    proj_base = st.selectbox(
         "Projection System",
-        ["OOPSY", "ATC", "THE BAT X", "OOPSY DC", "ATC DC", "THE BAT X DC"],
+        ["OOPSY", "ATC", "THE BAT X"],
         index=0,
-        help="OOPSY/ATC/THE BAT X = preseason. DC variants = in-season (unlocks Opening Day)."
     )
+    proj_type = st.radio(
+        "Type",
+        ["Preseason", "In-Season (DC)"],
+        index=0,
+        horizontal=True,
+    )
+    proj_system = (proj_base + " DC") if proj_type == "In-Season (DC)" else proj_base
+
+    if proj_type == "In-Season (DC)":
+        st.warning("⚠️ In-season projections aren't available yet — check back Opening Day (March 27).")
 
     st.markdown("---")
 
