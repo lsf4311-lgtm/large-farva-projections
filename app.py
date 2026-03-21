@@ -683,18 +683,35 @@ elif page == "Player Search":
     search = st.text_input("Search by player name")
 
     if search:
-        results = all_players[
+        # Search rostered players
+        rostered_results = all_players[
             all_players['player_name'].str.contains(search, case=False, na=False)
         ][['player_name', 'team_name', 'position', 'salary', 'FPTS', 'starter']].copy()
-
-        results['starter'] = results['starter'].map({True: 'Starter', False: 'Bench'})
-        results['FPTS'] = results['FPTS'].round(1)
-        results = results.rename(columns={
+        rostered_results['starter'] = rostered_results['starter'].map({True: 'Starter', False: 'Bench'})
+        rostered_results = rostered_results.rename(columns={
             'player_name': 'Player', 'team_name': 'Team', 'position': 'POS',
             'salary': 'Salary', 'FPTS': 'Proj FPTS', 'starter': 'Status'
         })
 
-        st.dataframe(results, width='stretch', hide_index=True)
+        # Search free agents
+        fa_results = free_agents[
+            free_agents['player_name'].str.contains(search, case=False, na=False)
+        ][['player_name', 'position', 'FPTS']].copy()
+        fa_results['Team'] = 'Free Agent'
+        fa_results['Salary'] = 0
+        fa_results['Status'] = 'FA'
+        fa_results = fa_results.rename(columns={
+            'player_name': 'Player', 'position': 'POS', 'FPTS': 'Proj FPTS'
+        })
+
+        results = pd.concat([rostered_results, fa_results], ignore_index=True)
+        results['Proj FPTS'] = results['Proj FPTS'].round(1)
+
+        if results.empty:
+            st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size:13px;">No players found.</p>', unsafe_allow_html=True)
+        else:
+            st.dataframe(results[['Player', 'Team', 'POS', 'Salary', 'Proj FPTS', 'Status']],
+                         width='stretch', hide_index=True)
     else:
         st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size:13px;">Type a player name to search...</p>',
                     unsafe_allow_html=True)
