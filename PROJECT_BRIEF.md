@@ -1,38 +1,57 @@
 # 2026 Ottoneu Fantasy Baseball Analysis — Project Brief
 
 ## Overview
-A Python-based analytics tool for a 12-team Ottoneu fantasy baseball league (League ID: 569, FanGraphs Points scoring). Projects team performance using OOPSY/ATC projections with an optimized lineup model. Deployed as a public Streamlit app shared with a co-manager.
+A Python-based analytics tool for a 12-team Ottoneu fantasy baseball league (League ID: 569, FanGraphs Points scoring). Projects team performance using OOPSY/ATC/THE BAT X projections with an optimized lineup model. Deployed as a public Hugging Face Space shared with a co-manager.
 
 ## Links
-- Live app: https://large-farva-projections-alpha.streamlit.app
+- Live app: https://huggingface.co/spaces/lsf4311/Farva-Operations-Center
+- HF Space git remote: `hf` → https://huggingface.co/spaces/lsf4311/Farva-Operations-Center
 - GitHub repo: https://github.com/lsf4311-lgtm/large-farva-projections (public)
 
+## Deployment
+- **Platform:** Hugging Face Spaces (migrated from Streamlit Community Cloud March 2026)
+- **Why migrated:** Streamlit suspended account for fair use violations (cause unclear — possibly scraping volume or optimizer CPU). HF Spaces has no such restrictions for this use case.
+- **Secrets:** FG_USER and FG_PASS stored in HF Space Settings → Variables and Secrets (not in code or repo)
+- **Rebuilds:** triggered by `git push hf main`
+- **Push to both remotes when updating:**
+  ```
+  git push origin main   # GitHub
+  git push hf main       # Hugging Face
+  ```
+- **NOTE:** `st.dataframe(width='stretch')` is not supported on newer Streamlit — use `use_container_width=True` instead. All instances updated in app.py.
+
 ## File Structure
-GitHub repo (large-farva-projections):
+Local project folder: `C:\Users\lsf43\Desktop\2026 ottoneu analysis with Claude\`
+
+Tracked in both GitHub and HF (committed to git):
   league_analysis_final.py     - main pipeline + pitching report functions
   app.py                       - Streamlit app (7 pages)
-  requirements.txt             - pinned: streamlit==1.32.0, altair==4.2.2
-  fangraphs-leaderboard-projections_oopsy hitting 2026.csv
-  fangraphs-leaderboard-projections_oopsy pitching 2026.csv
-  fangraphs-leaderboard-projections_2026 hitting_atc.csv
-  fangraphs-leaderboard-projections_2026 pitching_atc.csv
-  sfbb_crosswalk.csv
+  requirements.txt             - pinned: streamlit==1.32.0, altair==4.2.2, beautifulsoup4 added
+  README.md                    - HF Space config (sdk, app_file, etc.)
+  data/
+    league_rosters.csv
+    players_with_projections.csv
+    team_projections.csv
+    roster_scrape_timestamp.txt
+    sfbb_crosswalk.csv
+    fangraphs-leaderboard-projections_oopsy hitting 2026.csv
+    fangraphs-leaderboard-projections_oopsy pitching 2026.csv
+    fangraphs-leaderboard-projections_2026 hitting_atc.csv
+    fangraphs-leaderboard-projections_2026 pitching_atc.csv
+    fangraphs-leaderboard-projections_thebatx hitting 2026.csv
+    fangraphs-leaderboard-projections_thebatx pitching 2026.csv
 
-Local only (not in GitHub):
-  C:\Users\lsf43\Desktop\2026 ottoneu analysis with Claude\
-    .streamlit\
-      secrets.toml             <- FG_USER and FG_PASS (never push to GitHub)
-    data\
-      league_rosters.csv
-      players_with_projections.csv
-      team_projections.csv
-      roster_scrape_timestamp.txt
+Local only (never push):
+  .streamlit/secrets.toml      <- FG_USER and FG_PASS (in .gitignore)
+  keepwarm.py                  <- pings HF Space URL daily
+  keepwarm.log                 <- keepwarm run history
+  run_keepwarm.bat             <- Task Scheduler wrapper
 
 ## Stack
 - Python 3.13 in VS Code
 - Libraries: requests, pandas, beautifulsoup4, rapidfuzz, pulp, streamlit==1.32.0, altair==4.2.2
-- Deployed on Streamlit Community Cloud (free tier)
-- Streamlit secrets: FG_USER, FG_PASS (FanGraphs login for auto-refresh)
+- Deployed on Hugging Face Spaces (free tier)
+- Secrets: FG_USER, FG_PASS stored in HF Space settings
 
 ## League Details
 - 12 teams, FanGraphs Points scoring
@@ -47,17 +66,17 @@ Local only (not in GitHub):
 Scrapes all 12 team roster pages from Ottoneu. Returns player name, Ottoneu fg_id, position, salary, player_type (hitters/pitchers). Saves roster_scrape_timestamp.txt on success.
 
 ### Step 2: Projection fetch (auto-refresh)
-fetch_projections(system, username, password) logs into FanGraphs via WordPress auth (blogs.fangraphs.com/wp-login.php), hits api/projections endpoint for all 4 CSVs (OOPSY/ATC hitting/pitching), saves fresh copies to disk. Falls back to CSV if login fails. Credentials stored in Streamlit secrets (FG_USER, FG_PASS). Sidebar shows "✓ live" or "⚠️ cached" with timestamp.
+fetch_projections(system, username, password) logs into FanGraphs via WordPress auth (blogs.fangraphs.com/wp-login.php), hits api/projections endpoint for all 4 CSVs (OOPSY/ATC hitting/pitching), saves fresh copies to disk. Falls back to CSV if login fails. Credentials stored in HF Secrets (FG_USER, FG_PASS). Sidebar shows "✓ live" or "⚠️ cached" with timestamp.
 
 Projection endpoints:
-  api/projections?type=oopsy&stats=bat  (and pit, atc, atcdc, oopsydc variants)
-  OOPSY DC / ATC DC unlock on Opening Day for in-season use.
+  api/projections?type=oopsy&stats=bat  (and pit, atc, atcdc, oopsydc, thebatx, thebatxdc variants)
+  OOPSY DC / ATC DC / THE BAT X DC unlock on Opening Day for in-season use.
 
 ### Step 3: Crosswalk merge
 SFBB crosswalk bridges Ottoneu IDs to FanGraphs IDs via OTTONEUID -> IDFANGRAPHS. Merges with projections on FanGraphs ID.
 
 ### Step 4: fuzzy_match_players()
-rapidfuzz fallback (threshold=90) for ~70 players missing from crosswalk. Flags matches below 95% as needs_review. Only fires for players with FPTS=0 after crosswalk merge.
+rapidfuzz fallback (threshold=90) for ~70+ players missing from crosswalk. Flags matches below 95% as needs_review. Only fires for players with FPTS=0 after crosswalk merge.
 
 ### Step 5: optimize_lineup() - TWO-PHASE
 Phase 1: PuLP linear programming fills all constrained slots optimally, excluding Util.
@@ -78,6 +97,7 @@ get_fa_positions() fetches accurate position eligibility from FanGraphs JSON API
 - Negative FPTS (-1.0) = 1 AB projection, treated as legitimate
 - File paths use os.path.join for cross-platform compatibility
 - FA filter uses BOTH fg_id and player name to prevent rostered players leaking into FA pool
+- Player Search now searches both rostered players AND free agents (fix: March 2026)
 
 ### Known Limitations
 - Ohtani appears as pitcher only in optimizer. Hitting FPTS added to his pitching row. Will not appear in Util or hitting slots. Noted with asterisk on Positional Breakdown page.
@@ -85,6 +105,7 @@ get_fa_positions() fetches accurate position eligibility from FanGraphs JSON API
 - Salary figures do not account for cap penalties.
 - Scraper can get rate-limited by Ottoneu if run too frequently. Fallback to cached CSV handles this gracefully.
 - Pitching Report page (stats/grades/rankings) is blank pre-season — Baseball Savant has no data until Opening Day.
+- ~70+ rostered players have no IDFANGRAPHS in SFBB crosswalk (mostly prospects/international). These rely on name-based filter. Crosswalk updates over time as SFBB adds entries.
 
 ## Streamlit App (app.py)
 
@@ -94,7 +115,7 @@ Dark theme, IBM Plex Mono/Sans fonts, navy/blue palette. Cached weekly via @st.c
 ### Load Order (important)
 1. Page config + styling
 2. Imports from league_analysis_final
-3. PROJECTION_FILES dict (all 4 systems: OOPSY, ATC, OOPSY DC, ATC DC)
+3. PROJECTION_FILES dict (all 6 systems: OOPSY, ATC, THE BAT X, OOPSY DC, ATC DC, THE BAT X DC)
 4. Projection system selector in sidebar (MUST be declared before load_all_data call)
 5. load_all_data(projection_system) definition
 6. Data load call
@@ -102,7 +123,7 @@ Dark theme, IBM Plex Mono/Sans fonts, navy/blue palette. Cached weekly via @st.c
 8. Pages
 
 ### Sidebar
-- Projection system toggle: OOPSY / ATC / OOPSY DC / ATC DC
+- Projection system toggle: OOPSY / ATC / THE BAT X (base), Preseason / In-Season (DC) (type)
 - Refresh button
 - Data Freshness: roster timestamp (amber=cached, green=live), projection freshness (amber=cached, green=live with date)
 
@@ -111,7 +132,7 @@ Dark theme, IBM Plex Mono/Sans fonts, navy/blue palette. Cached weekly via @st.c
 2. Team Detail - defaults to Large Farva, roster split into starters/bench sorted by FPTS
 3. Positional Breakdown - slot-level detail + position group summary. Ohtani asterisk.
 4. Free Agent Targets - Best Available by Position (one row per position, gain colored) + Full FA list with position filter
-5. Player Search - search by name, shows player/team/position/salary/FPTS/status
+5. Player Search - search by name, shows player/team/position/salary/FPTS/status. Searches both rostered players AND free agents (FAs show Team="Free Agent", Status="FA")
 6. Head to Head - FPTS gap + side-by-side rosters
 7. Pitching Report - see below
 
@@ -154,10 +175,14 @@ If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber 
 ### ✅ Completed
 - ATC vs OOPSY projection toggle (sidebar dropdown)
 - OOPSY DC / ATC DC in-season variants (unlock Opening Day)
+- THE BAT X and THE BAT X DC projection systems added
 - Auto-refresh projections from FanGraphs API (daily, with CSV fallback)
 - FA position accuracy: FanGraphs API for hitters (C/1B/2B/SS/3B/OF), sta/rel for pitchers (SP/RP)
 - Rostered player leak fix: name-based secondary filter catches crosswalk ID gaps
 - Pitching Report page: schedule, matchup grades, season stats, rotation prediction, opponent rankings, summary ranking table
+- Player Search fix: now searches both rostered players and free agents
+- Migrated from Streamlit Community Cloud to Hugging Face Spaces
+- Keepwarm script: Windows Task Scheduler job fixed (cmd.exe wrapper handles path spaces), pings HF Space URL daily at 8am
 
 ### P2 - Next
 - **Inflation model** (same app or separate TBD — scope further first)
@@ -182,7 +207,6 @@ If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber 
 
 ### P3 - Medium Term
 - Prospect breakout page: cross-reference top prospects against rosters, flag unowned ones worth stashing.
-- App keepwarm script: Windows Task Scheduler job running keepwarm.py daily at 8am to ping the Streamlit URL and prevent free-tier sleep. Keeps cold start from hitting co-manager. ATC cache can't be pre-warmed (session state is client-side) but OOPSY default will always be warm. Script saved at C:\Users\lsf43\Desktop\2026 ottoneu analysis with Claude\keepwarm.py.
 - Load time optimization (if needed): parallelize get_fa_positions() with ThreadPoolExecutor (8 concurrent requests instead of sequential). Risk: more likely to trigger FanGraphs rate limiting. Only worth doing if load time becomes a real issue in daily use — current weekly cache means slow load only hits once per week anyway.
 
 ### P4 - Offseason/Long Term
@@ -193,10 +217,12 @@ If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber 
 ## Key Technical Notes
 - Player ID systems: Ottoneu IDs != FanGraphs IDs. SFBB crosswalk bridges via OTTONEUID -> IDFANGRAPHS
 - FanGraphs WordPress login: POST to blogs.fangraphs.com/wp-login.php with log/pwd/rememberme. Auth confirmed by wordpress_sec_* cookie (not wordpress_logged_in — duplicate cookie names cause CookieConflictError in dict() but session still works).
-- FanGraphs projection API: api/projections?type={oopsy|atc|oopsydc|atcdc}&stats={bat|pit}&pos=all&team=0&players=0&lg=all — requires auth cookie, returns JSON list directly.
+- FanGraphs projection API: api/projections?type={oopsy|atc|oopsydc|atcdc|thebatx|thebatxdc}&stats={bat|pit}&pos=all&team=0&players=0&lg=all — requires auth cookie, returns JSON list directly.
 - FanGraphs FA position API: api/leaders/major-league/data?pos={pos}&stats={bat|sta|rel}&fl=569&ft=-1 — no auth needed.
 - Baseball Savant data: baseballsavant.mlb.com/statcast_search/csv — pitch-level CSV, no auth needed.
-- requirements.txt must pin streamlit==1.32.0 and altair==4.2.2 to avoid altair.vegalite.v4 error
-- Streamlit free tier sleeps inactive apps — first visit after dormancy is slow (~30-60 sec)
+- requirements.txt must pin streamlit==1.32.0 and altair==4.2.2 to avoid altair.vegalite.v4 error. beautifulsoup4 must be explicitly listed.
+- HF Spaces free tier sleeps inactive apps — keepwarm.py pings daily at 8am to prevent this
 - DATA_DIR auto-detects: uses data subfolder locally, falls back to script directory on cloud
-- .streamlit/secrets.toml must be in .gitignore — never push credentials to GitHub
+- .streamlit/secrets.toml must be in .gitignore — never push credentials to GitHub or HF
+- st.dataframe() width parameter: use use_container_width=True, NOT width='stretch' (breaks on newer Streamlit versions)
+- Keepwarm Task Scheduler: use cmd.exe as program with /c "full\path\to\run_keepwarm.bat" as argument — direct .bat path fails when folder name contains spaces
