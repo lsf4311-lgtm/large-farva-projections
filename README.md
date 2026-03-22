@@ -2,7 +2,7 @@
 title: Farva Operations Center
 emoji: ⚾
 colorFrom: blue
-colorTo: navy
+colorTo: blue
 sdk: streamlit
 sdk_version: 1.32.0
 app_file: app.py
