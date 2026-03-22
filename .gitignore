@@ -1,0 +1,8 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+*.log
+old apps/
+old briefs/
+debug_fa.py
+scratchwork.py
