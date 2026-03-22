@@ -1,0 +1,473 @@
+team_id,team_name,player_name,fg_id,position,salary,player_type
+4059,Hollyhood,Fernando Tatis Jr.,23682,OF,57,hitters
+4059,Hollyhood,Gunnar Henderson,37806,SS,39,hitters
+4059,Hollyhood,Ketel Marte,18466,2B,28,hitters
+4059,Hollyhood,Junior Caminero,39108,3B,23,hitters
+4059,Hollyhood,Teoscar Hernandez,23651,OF,20,hitters
+4059,Hollyhood,Jackson Chourio,39277,OF,19,hitters
+4059,Hollyhood,Michael Harris II,37295,OF,16,hitters
+4059,Hollyhood,Willson Contreras,12398,1B,13,hitters
+4059,Hollyhood,Hunter Goodman,40389,C,6,hitters
+4059,Hollyhood,Trent Grisham,18547,OF,6,hitters
+4059,Hollyhood,Trevor Story,18153,SS,6,hitters
+4059,Hollyhood,Willi Castro,21708,2B/3B/OF,5,hitters
+4059,Hollyhood,Lars Nootbaar,34601,OF,5,hitters
+4059,Hollyhood,Jeremy Pena,35939,SS,5,hitters
+4059,Hollyhood,Colton Cowser,39978,OF,5,hitters
+4059,Hollyhood,Ernie Clement,31958,1B/2B/SS/3B,4,hitters
+4059,Hollyhood,Austin Wells,38317,C,3,hitters
+4059,Hollyhood,Lazaro Montes,41160,OF,2,hitters
+4059,Hollyhood,Mike Yastrzemski,18383,OF,1,hitters
+4059,Hollyhood,Rainiel Rodriguez,45018,C,1,hitters
+4059,Hollyhood,Jesus Luzardo,23741,SP,13,pitchers
+4059,Hollyhood,Carlos Rodon,18359,SP,13,pitchers
+4059,Hollyhood,Eury Perez,38559,SP,12,pitchers
+4059,Hollyhood,Nick Lodolo,36686,SP,12,pitchers
+4059,Hollyhood,Connelly Early,44515,SP/RP,10,pitchers
+4059,Hollyhood,Mitch Keller,20936,SP,8,pitchers
+4059,Hollyhood,Trevor Rogers,33607,SP,8,pitchers
+4059,Hollyhood,Daniel Palencia,38781,RP,7,pitchers
+4059,Hollyhood,Trevor Megill,20989,RP,7,pitchers
+4059,Hollyhood,Liam Doyle,47533,SP/RP,6,pitchers
+4059,Hollyhood,Garrett Whitlock,27185,RP,6,pitchers
+4059,Hollyhood,Bailey Ober,32966,SP,6,pitchers
+4059,Hollyhood,Grant Taylor,44544,SP/RP,5,pitchers
+4059,Hollyhood,Quinn Priester,36682,SP/RP,5,pitchers
+4059,Hollyhood,Robert Garcia,31984,RP,3,pitchers
+4059,Hollyhood,Payton Tolle,46310,SP/RP,3,pitchers
+4059,Hollyhood,Casey Mize,33616,SP,3,pitchers
+4059,Hollyhood,Kyle Harrison,38410,SP/RP,2,pitchers
+4059,Hollyhood,Jackson Jobe,40097,SP,1,pitchers
+4059,Hollyhood,Johan Oviedo,33424,SP,1,pitchers
+4059,Hollyhood,Cody Ponce,21961,SP/RP,1,pitchers
+4144,Rick Vaughn's Wild Things,Jose Altuve,5918,2B/OF,33,hitters
+4144,Rick Vaughn's Wild Things,Bo Bichette,23767,SS,31,hitters
+4144,Rick Vaughn's Wild Things,Christian Yelich,14893,OF,22,hitters
+4144,Rick Vaughn's Wild Things,Cody Bellinger,19328,OF,21,hitters
+4144,Rick Vaughn's Wild Things,Carlos Correa,18160,SS/3B,19,hitters
+4144,Rick Vaughn's Wild Things,Nico Hoerner,33627,2B,12,hitters
+4144,Rick Vaughn's Wild Things,Josh Naylor,22655,1B,12,hitters
+4144,Rick Vaughn's Wild Things,J.T. Realmuto,14864,C,11,hitters
+4144,Rick Vaughn's Wild Things,Ozzie Albies,18397,2B,9,hitters
+4144,Rick Vaughn's Wild Things,Sal Frelick,40298,OF,8,hitters
+4144,Rick Vaughn's Wild Things,Tommy Edman,31703,2B/3B/OF,6,hitters
+4144,Rick Vaughn's Wild Things,Jordan Beck,42277,OF,6,hitters
+4144,Rick Vaughn's Wild Things,Adolis García,23745,OF,6,hitters
+4144,Rick Vaughn's Wild Things,Justin Crawford,42428,OF,5,hitters
+4144,Rick Vaughn's Wild Things,Jorge Polanco,13217,2B/3B,4,hitters
+4144,Rick Vaughn's Wild Things,Charlie Condon,45715,1B,4,hitters
+4144,Rick Vaughn's Wild Things,Masataka Yoshida,42722,OF,3,hitters
+4144,Rick Vaughn's Wild Things,Coby Mayo,38378,1B,3,hitters
+4144,Rick Vaughn's Wild Things,Tyler Stephenson,22654,C,2,hitters
+4144,Rick Vaughn's Wild Things,Edgar Quero,38887,C,1,hitters
+4144,Rick Vaughn's Wild Things,Parker Meadows,35450,OF,1,hitters
+4144,Rick Vaughn's Wild Things,Gavin Lux,32576,2B/3B/OF,1,hitters
+4144,Rick Vaughn's Wild Things,Logan Gilbert,33682,SP,25,pitchers
+4144,Rick Vaughn's Wild Things,Chris Sale,14393,SP,23,pitchers
+4144,Rick Vaughn's Wild Things,Tatsuya Imai,48241,SP/RP,22,pitchers
+4144,Rick Vaughn's Wild Things,Joe Ryan,35196,SP,20,pitchers
+4144,Rick Vaughn's Wild Things,Zac Gallen,23779,SP,13,pitchers
+4144,Rick Vaughn's Wild Things,Jhoan Duran,22559,RP,11,pitchers
+4144,Rick Vaughn's Wild Things,David Bednar,31951,RP,10,pitchers
+4144,Rick Vaughn's Wild Things,Aaron Nola,18357,SP,9,pitchers
+4144,Rick Vaughn's Wild Things,Robert Suarez,22078,RP,8,pitchers
+4144,Rick Vaughn's Wild Things,Robbie Ray,14941,SP,7,pitchers
+4144,Rick Vaughn's Wild Things,Noah Schultz,42873,SP,6,pitchers
+4144,Rick Vaughn's Wild Things,Thomas White,44487,SP,5,pitchers
+4144,Rick Vaughn's Wild Things,Gabe Speier,19520,RP,3,pitchers
+4144,Rick Vaughn's Wild Things,Cristian Javier,22694,SP,3,pitchers
+4144,Rick Vaughn's Wild Things,Adrian Houser,28712,SP/RP,3,pitchers
+4144,Rick Vaughn's Wild Things,Max Meyer,38307,SP,1,pitchers
+4144,Rick Vaughn's Wild Things,Brendon Little,31812,RP,1,pitchers
+4067,Large Farva,Corey Seager,18216,SS,40,hitters
+4067,Large Farva,Kyle Schwarber,18347,OF,35,hitters
+4067,Large Farva,Mookie Betts,18276,SS,32,hitters
+4067,Large Farva,Mike Trout,6305,OF,24,hitters
+4067,Large Farva,Vinnie Pasquantino,37094,1B,14,hitters
+4067,Large Farva,Brandon Lowe,31741,2B,14,hitters
+4067,Large Farva,Max Muncy,18255,3B,9,hitters
+4067,Large Farva,Jo Adell,23792,OF,8,hitters
+4067,Large Farva,Jonathan Aranda,33217,1B,7,hitters
+4067,Large Farva,Ivan Herrera,26099,C,6,hitters
+4067,Large Farva,Matt Wallner,37174,OF,6,hitters
+4067,Large Farva,Royce Lewis,23796,3B,6,hitters
+4067,Large Farva,Luis Arraez,20545,1B/2B,5,hitters
+4067,Large Farva,Ryan O'Hearn,21156,1B/OF,4,hitters
+4067,Large Farva,Jordan Walker,38366,OF,3,hitters
+4067,Large Farva,Dominic Canzone,37536,OF,3,hitters
+4067,Large Farva,Brandon Marsh,23868,OF,3,hitters
+4067,Large Farva,Gabriel Moreno,26134,C,3,hitters
+4067,Large Farva,Tyler Freeman,26882,2B/OF,3,hitters
+4067,Large Farva,Nolan Gorman,33623,2B/3B,3,hitters
+4067,Large Farva,Edouard Julien,38350,1B/2B,1,hitters
+4067,Large Farva,Garrett Mitchell,38325,OF,1,hitters
+4067,Large Farva,Logan Webb,21015,SP,31,pitchers
+4067,Large Farva,Cole Ragans,23625,SP,24,pitchers
+4067,Large Farva,Framber Valdez,22426,SP,23,pitchers
+4067,Large Farva,Tyler Glasnow,18236,SP,15,pitchers
+4067,Large Farva,Jacob DeGrom,14294,SP,13,pitchers
+4067,Large Farva,Mason Miller,40862,RP,11,pitchers
+4067,Large Farva,Andres Munoz,33259,RP,9,pitchers
+4067,Large Farva,Will Warren,40972,SP,5,pitchers
+4067,Large Farva,JR Ritchie,42538,SP,5,pitchers
+4067,Large Farva,Riley O'Brien,26531,RP,4,pitchers
+4067,Large Farva,Justin Steele,21039,RP,4,pitchers
+4067,Large Farva,Cade Cavalli,38334,SP,3,pitchers
+4067,Large Farva,Braxton Ashcraft,35776,SP/RP,3,pitchers
+4067,Large Farva,Abner Uribe,35602,RP,3,pitchers
+4067,Large Farva,Will Vest,26446,RP,3,pitchers
+4067,Large Farva,Joey Cantillo,27148,SP/RP,3,pitchers
+4067,Large Farva,Joe Boyle,38397,SP,1,pitchers
+4067,Large Farva,Matthew Liberatore,33611,SP/RP,1,pitchers
+4067,Large Farva,Hunter Barco,43911,SP/RP,1,pitchers
+4142,The Milwaukee Beers,Aaron Judge,18312,OF,74,hitters
+4142,The Milwaukee Beers,Bobby Witt Jr.,36668,SS,54,hitters
+4142,The Milwaukee Beers,Yandy Diaz,18517,1B,19,hitters
+4142,The Milwaukee Beers,William Contreras,22391,C,15,hitters
+4142,The Milwaukee Beers,Kerry Carpenter,37300,OF,10,hitters
+4142,The Milwaukee Beers,Daylen Lile,40714,OF,10,hitters
+4142,The Milwaukee Beers,Giancarlo Stanton,5201,OF,7,hitters
+4142,The Milwaukee Beers,Alec Bohm,33609,1B/3B,6,hitters
+4142,The Milwaukee Beers,Connor Norby,40284,3B,6,hitters
+4142,The Milwaukee Beers,Maikel Garcia,26154,2B/SS/3B/OF,6,hitters
+4142,The Milwaukee Beers,TJ Friedl,23788,OF,6,hitters
+4142,The Milwaukee Beers,Xavier Edwards,33645,2B/SS,6,hitters
+4142,The Milwaukee Beers,Ramon Laureano,21200,OF,4,hitters
+4142,The Milwaukee Beers,Carson Kelly,23714,C,3,hitters
+4142,The Milwaukee Beers,Josh Smith,37960,1B/SS/3B/OF,2,hitters
+4142,The Milwaukee Beers,Spencer Jones,42266,OF,2,hitters
+4142,The Milwaukee Beers,Anthony Volpe,36683,SS,2,hitters
+4142,The Milwaukee Beers,Paul Goldschmidt,4374,1B,2,hitters
+4142,The Milwaukee Beers,Jhonkensy Noel,33905,1B/OF,1,hitters
+4142,The Milwaukee Beers,Abimelec Ortiz,40214,1B/OF,1,hitters
+4142,The Milwaukee Beers,Marcell Ozuna,6130,Util,1,hitters
+4142,The Milwaukee Beers,Freddy Peralta,19168,SP,25,pitchers
+4142,The Milwaukee Beers,Cristopher Sanchez,20975,SP,20,pitchers
+4142,The Milwaukee Beers,Sonny Gray,18113,SP,19,pitchers
+4142,The Milwaukee Beers,Ranger Suarez,31194,SP,18,pitchers
+4142,The Milwaukee Beers,Raisel Iglesias,18422,RP,17,pitchers
+4142,The Milwaukee Beers,Merrill Kelly,17763,SP,9,pitchers
+4142,The Milwaukee Beers,Jose Soriano,32009,SP,7,pitchers
+4142,The Milwaukee Beers,Jeff Hoffman,18364,RP,7,pitchers
+4142,The Milwaukee Beers,Ryne Nelson,37826,SP/RP,6,pitchers
+4142,The Milwaukee Beers,Ben Casparius,40834,RP,6,pitchers
+4142,The Milwaukee Beers,David Peterson,31541,SP,5,pitchers
+4142,The Milwaukee Beers,Brad Keller,19378,RP,4,pitchers
+4142,The Milwaukee Beers,Janson Junk,26807,SP/RP,4,pitchers
+4142,The Milwaukee Beers,Patrick Sandoval,22876,RP,4,pitchers
+4142,The Milwaukee Beers,Matt Brash,37234,RP,3,pitchers
+4142,The Milwaukee Beers,Tyler Mahle,19422,SP,2,pitchers
+4142,The Milwaukee Beers,Reynaldo Lopez,18415,RP,2,pitchers
+4142,The Milwaukee Beers,Orion Kerkering,42666,RP,2,pitchers
+4142,The Milwaukee Beers,Noah Cameron,40937,SP,1,pitchers
+4149,Big Trouble,Randy Arozarena,23840,OF,23,hitters
+4149,Big Trouble,Alex Bregman,18480,3B,23,hitters
+4149,Big Trouble,Jazz Chisholm Jr.,23762,2B/3B,17,hitters
+4149,Big Trouble,Freddie Freeman,5680,1B,15,hitters
+4149,Big Trouble,CJ Abrams,36922,SS,13,hitters
+4149,Big Trouble,George Springer,18124,OF,12,hitters
+4149,Big Trouble,Ceddanne Rafaela,33907,2B/OF,9,hitters
+4149,Big Trouble,Pete Crow-Armstrong,38327,OF,9,hitters
+4149,Big Trouble,Jung Hoo Lee,44524,OF,9,hitters
+4149,Big Trouble,Adley Rutschman,37257,C,8,hitters
+4149,Big Trouble,Brooks Lee,42146,2B/SS/3B,7,hitters
+4149,Big Trouble,Matt Shaw,43966,3B,5,hitters
+4149,Big Trouble,Spencer Steer,37216,1B/OF,5,hitters
+4149,Big Trouble,Josh Lowe,23752,OF,5,hitters
+4149,Big Trouble,Evan Carter,38389,OF,5,hitters
+4149,Big Trouble,JJ Wetherholt,45713,2B/SS,4,hitters
+4149,Big Trouble,Kyle Teel,43949,C,4,hitters
+4149,Big Trouble,Yainer Diaz,26292,C,2,hitters
+4149,Big Trouble,Shohei Ohtani,33600,Util/SP,87,pitchers
+4149,Big Trouble,Hunter Brown,37201,SP,21,pitchers
+4149,Big Trouble,Dylan Cease,21052,SP,19,pitchers
+4149,Big Trouble,Josh Hader,18391,RP,16,pitchers
+4149,Big Trouble,MacKenzie Gore,23810,SP,12,pitchers
+4149,Big Trouble,Shota Imanaga,44526,SP,9,pitchers
+4149,Big Trouble,Bryce Miller,40550,SP,9,pitchers
+4149,Big Trouble,Chase Burns,45706,SP/RP,7,pitchers
+4149,Big Trouble,Aroldis Chapman,5644,RP,6,pitchers
+4149,Big Trouble,Jeremiah Estrada,27208,RP,5,pitchers
+4149,Big Trouble,Fernando Cruz,8550,RP,4,pitchers
+4149,Big Trouble,JoJo Romero,23818,RP,3,pitchers
+4149,Big Trouble,Mike Burrows,35811,SP,3,pitchers
+4149,Big Trouble,Taj Bradley,35367,SP,2,pitchers
+4149,Big Trouble,Jose A. Ferrer,34396,RP,2,pitchers
+4149,Big Trouble,Jurrangelo Cijntje,45990,SP,2,pitchers
+4149,Big Trouble,Anthony Bender,32871,RP,1,pitchers
+4149,Big Trouble,Dean Kremer,31819,SP,1,pitchers
+4060,Chyna Jr,Rafael Devers,18344,1B,38,hitters
+4060,Chyna Jr,Julio Rodriguez,33625,OF,36,hitters
+4060,Chyna Jr,Francisco Lindor,18122,SS,35,hitters
+4060,Chyna Jr,Cal Raleigh,33654,C,21,hitters
+4060,Chyna Jr,Bryce Harper,14982,1B,21,hitters
+4060,Chyna Jr,Ian Happ,18479,OF,19,hitters
+4060,Chyna Jr,Taylor Ward,22048,OF,13,hitters
+4060,Chyna Jr,Gleyber Torres,18487,2B,12,hitters
+4060,Chyna Jr,Brent Rooker,23793,OF,12,hitters
+4060,Chyna Jr,Jackson Merrill,40142,OF,11,hitters
+4060,Chyna Jr,Matt Chapman,18378,3B,10,hitters
+4060,Chyna Jr,Francisco Alvarez,37427,C,7,hitters
+4060,Chyna Jr,Jac Caglianone,45720,1B/OF,6,hitters
+4060,Chyna Jr,Xander Bogaerts,13117,SS,5,hitters
+4060,Chyna Jr,Miguel Vargas,34804,1B/3B,5,hitters
+4060,Chyna Jr,Jeff Mcneil,18644,2B/OF,4,hitters
+4060,Chyna Jr,Kevin McGonigle,44223,SS,3,hitters
+4060,Chyna Jr,Otto Lopez,26570,2B/SS,1,hitters
+4060,Chyna Jr,Garrett Crochet,38312,SP,28,pitchers
+4060,Chyna Jr,Kevin Gausman,18196,SP,23,pitchers
+4060,Chyna Jr,Kris Bubic,35566,SP,21,pitchers
+4060,Chyna Jr,Jack Flaherty,20920,SP,17,pitchers
+4060,Chyna Jr,Edward Cabrera,33325,SP,8,pitchers
+4060,Chyna Jr,Bryan Abreu,20900,RP,6,pitchers
+4060,Chyna Jr,Emilio Pagan,19394,RP,6,pitchers
+4060,Chyna Jr,Cade Smith,38754,RP,6,pitchers
+4060,Chyna Jr,Ian Seymour,38409,SP/RP,5,pitchers
+4060,Chyna Jr,Luis Gil,23373,SP,4,pitchers
+4060,Chyna Jr,Matthew Boyd,18465,SP,4,pitchers
+4060,Chyna Jr,Hagen Smith,45721,SP,2,pitchers
+4060,Chyna Jr,Kevin Ginkel,31509,RP,1,pitchers
+4060,Chyna Jr,Garrett Cleavinger,20421,RP,1,pitchers
+4060,Chyna Jr,Michael Wacha,18171,SP,1,pitchers
+4105,Titty City,Austin Riley,22674,3B,28,hitters
+4105,Titty City,Wyatt Langford,43896,OF,20,hitters
+4105,Titty City,Bryan Reynolds,23825,OF,16,hitters
+4105,Titty City,Eugenio Suarez,9668,3B,12,hitters
+4105,Titty City,Salvador Perez,8626,C/1B,10,hitters
+4105,Titty City,Wilyer Abreu,27058,OF,9,hitters
+4105,Titty City,Jakob Marsee,42169,OF,8,hitters
+4105,Titty City,Bryson Stott,37531,2B/SS,8,hitters
+4105,Titty City,Agustin Ramirez,36325,C,8,hitters
+4105,Titty City,Andrew Vaughn,37469,1B,6,hitters
+4105,Titty City,Sal Stewart,42358,1B/3B,6,hitters
+4105,Titty City,Dylan Beavers,42279,OF,6,hitters
+4105,Titty City,Sebastian Walcott,42991,SS,6,hitters
+4105,Titty City,Zach Neto,42156,SS,5,hitters
+4105,Titty City,Carter Jensen,40505,C,5,hitters
+4105,Titty City,Geraldo Perdomo,26198,SS,5,hitters
+4105,Titty City,Luke Keaschall,44057,2B,4,hitters
+4105,Titty City,Ryan Waldschmidt,45789,OF,3,hitters
+4105,Titty City,Luis Pena,45090,2B/SS,3,hitters
+4105,Titty City,Cole Young,42582,2B/SS,3,hitters
+4105,Titty City,Daulton Varsho,23833,OF,3,hitters
+4105,Titty City,Caleb Durbin,40398,2B/3B,3,hitters
+4105,Titty City,Joshua Baez,40147,OF,1,hitters
+4105,Titty City,Yoshinobu Yamamoto,44525,SP,42,pitchers
+4105,Titty City,Paul Skenes,43894,SP,41,pitchers
+4105,Titty City,Zack Wheeler,15962,SP,24,pitchers
+4105,Titty City,Tanner Bibee,40978,SP,15,pitchers
+4105,Titty City,Bryan Woo,41042,SP,13,pitchers
+4105,Titty City,Kyle Bradish,35874,SP,10,pitchers
+4105,Titty City,Spencer Schwellenbach,42737,SP,9,pitchers
+4105,Titty City,Ryan Helsley,22651,RP,8,pitchers
+4105,Titty City,Gerrit Cole,18116,RP,7,pitchers
+4105,Titty City,Robby Snelling,42741,SP,5,pitchers
+4105,Titty City,Emmet Sheehan,40552,SP,5,pitchers
+4105,Titty City,Phil Maton,22809,RP,3,pitchers
+4105,Titty City,Matt Svanson,40308,RP,3,pitchers
+4105,Titty City,Brody Hopkins,44639,SP,1,pitchers
+4105,Titty City,Dustin May,32611,SP,1,pitchers
+4105,Titty City,Edgardo Henriquez,36539,RP,1,pitchers
+4105,Titty City,Chad Patrick,40861,SP,1,pitchers
+4105,Titty City,Hunter Gaddis,37239,RP,1,pitchers
+4304,Busch Banditos,Elly De La Cruz,36338,SS,28,hitters
+4304,Busch Banditos,Manny Machado,14934,3B,26,hitters
+4304,Busch Banditos,Will Smith,23654,C,22,hitters
+4304,Busch Banditos,Kazuma Okamoto,48239,1B/3B,19,hitters
+4304,Busch Banditos,Jarren Duran,33685,OF,17,hitters
+4304,Busch Banditos,Heliot Ramos,23834,OF,15,hitters
+4304,Busch Banditos,Byron Buxton,18163,OF,14,hitters
+4304,Busch Banditos,Brendan Donovan,34619,2B/SS/OF,11,hitters
+4304,Busch Banditos,Steven Kwan,35824,OF,10,hitters
+4304,Busch Banditos,Marcelo Mayer,40095,2B/SS/3B,7,hitters
+4304,Busch Banditos,Tyler Soderstrom,38388,1B/OF,7,hitters
+4304,Busch Banditos,Jonathan India,33619,2B/3B/OF,4,hitters
+4304,Busch Banditos,Tyler O'Neill,19296,OF,4,hitters
+4304,Busch Banditos,Konnor Griffin,45769,SS,4,hitters
+4304,Busch Banditos,Brett Baty,37181,2B/3B,4,hitters
+4304,Busch Banditos,Jesus Made,45064,SS,3,hitters
+4304,Busch Banditos,Jose Caballero,26915,2B/SS/3B/OF,3,hitters
+4304,Busch Banditos,Ryan Jeffers,33652,C,3,hitters
+4304,Busch Banditos,Josh Jung,37786,3B,3,hitters
+4304,Busch Banditos,Nolan Schanuel,43932,1B,3,hitters
+4304,Busch Banditos,Michael King,31751,SP,22,pitchers
+4304,Busch Banditos,Hunter Greene,23824,SP,21,pitchers
+4304,Busch Banditos,Edwin Diaz,23601,RP,15,pitchers
+4304,Busch Banditos,Corbin Burnes,23813,SP,12,pitchers
+4304,Busch Banditos,Bubba Chandler,40564,SP/RP,10,pitchers
+4304,Busch Banditos,Shane McClanahan,33647,SP/RP,9,pitchers
+4304,Busch Banditos,Carlos Estevez,23613,RP,9,pitchers
+4304,Busch Banditos,Nolan McLean,44336,SP,8,pitchers
+4304,Busch Banditos,Andrew Abbott,40607,SP,7,pitchers
+4304,Busch Banditos,Jack Leiter,40155,SP,7,pitchers
+4304,Busch Banditos,Kyle Finnegan,18619,RP,6,pitchers
+4304,Busch Banditos,Ryan Walker,35205,RP,5,pitchers
+4304,Busch Banditos,Kade Anderson,47553,RP,5,pitchers
+4304,Busch Banditos,Luis Severino,18355,SP,4,pitchers
+4304,Busch Banditos,Seranthony Dominguez,30196,RP,3,pitchers
+4304,Busch Banditos,Cam Schlittler,43589,SP,3,pitchers
+4304,Busch Banditos,Carlos Lagrange,41865,SP,3,pitchers
+4304,Busch Banditos,Andrew Painter,40829,SP,3,pitchers
+4304,Busch Banditos,Joe Musgrove,18462,RP,3,pitchers
+4304,Busch Banditos,Kumar Rocker,42110,SP,1,pitchers
+4304,Busch Banditos,Jose Berrios,18201,SP,1,pitchers
+4058,Cat & Kaboom,Yordan Alvarez,23795,OF,47,hitters
+4058,Cat & Kaboom,Ronald Acuña Jr.,23327,OF,45,hitters
+4058,Cat & Kaboom,Kyle Tucker,18546,OF,44,hitters
+4058,Cat & Kaboom,Pete Alonso,23859,1B,31,hitters
+4058,Cat & Kaboom,Isaac Paredes,23831,3B,17,hitters
+4058,Cat & Kaboom,Willy Adames,18407,SS,16,hitters
+4058,Cat & Kaboom,Luis Robert Jr.,23780,OF,12,hitters
+4058,Cat & Kaboom,Shea Langeliers,36669,C,11,hitters
+4058,Cat & Kaboom,Marcus Semien,18263,2B,10,hitters
+4058,Cat & Kaboom,Jordan Westburg,38398,2B/3B,9,hitters
+4058,Cat & Kaboom,Leo De Vries,44539,SS,6,hitters
+4058,Cat & Kaboom,Cam Smith,45714,OF,5,hitters
+4058,Cat & Kaboom,Christian Walker,18389,1B,5,hitters
+4058,Cat & Kaboom,Carson Williams,40266,SS,3,hitters
+4058,Cat & Kaboom,Kyle Stowers,37480,OF,3,hitters
+4058,Cat & Kaboom,Victor Robles,18516,OF,2,hitters
+4058,Cat & Kaboom,Eduardo Quintero,43129,OF,2,hitters
+4058,Cat & Kaboom,Masyn Winn,38404,SS,2,hitters
+4058,Cat & Kaboom,George Lombard Jr.,44470,SS,1,hitters
+4058,Cat & Kaboom,J.P. Crawford,18272,SS,1,hitters
+4058,Cat & Kaboom,Josue Briceno,41335,C/1B,1,hitters
+4058,Cat & Kaboom,Christopher Morel,26080,OF,1,hitters
+4058,Cat & Kaboom,Ronny Mauricio,33640,2B/3B,1,hitters
+4058,Cat & Kaboom,Ke'Bryan Hayes,18548,3B,1,hitters
+4058,Cat & Kaboom,Logan O'Hoppe,35181,C,1,hitters
+4058,Cat & Kaboom,Kyle Isbel,33686,OF,1,hitters
+4058,Cat & Kaboom,Max Fried,18164,SP,32,pitchers
+4058,Cat & Kaboom,George Kirby,36671,SP,20,pitchers
+4058,Cat & Kaboom,Luis Castillo,23732,SP,16,pitchers
+4058,Cat & Kaboom,Kodai Senga,42723,SP,11,pitchers
+4058,Cat & Kaboom,Devin Williams,19268,RP,10,pitchers
+4058,Cat & Kaboom,Gavin Williams,40941,SP,10,pitchers
+4058,Cat & Kaboom,Kenley Jansen,2916,RP,7,pitchers
+4058,Cat & Kaboom,Dennis Santana,18985,RP,5,pitchers
+4058,Cat & Kaboom,Luke Weaver,18380,RP,3,pitchers
+4058,Cat & Kaboom,Seth Lugo,23701,SP,3,pitchers
+4058,Cat & Kaboom,Edwin Uceta,33395,RP,2,pitchers
+4058,Cat & Kaboom,Matt Strahm,23691,RP,1,pitchers
+4058,Cat & Kaboom,Alexis Diaz,22926,RP,1,pitchers
+4058,Cat & Kaboom,Brady Singer,33620,SP,1,pitchers
+4179,Bartolo's Meatballs,Juan Soto,23717,OF,76,hitters
+4179,Bartolo's Meatballs,José Ramírez,18284,3B,52,hitters
+4179,Bartolo's Meatballs,Trea Turner,18368,SS,44,hitters
+4179,Bartolo's Meatballs,Seiya Suzuki,40927,OF,30,hitters
+4179,Bartolo's Meatballs,James Wood,40188,OF,22,hitters
+4179,Bartolo's Meatballs,Brice Turang,33634,2B,10,hitters
+4179,Bartolo's Meatballs,Michael Busch,37841,1B,9,hitters
+4179,Bartolo's Meatballs,Lawrence Butler,34788,OF,8,hitters
+4179,Bartolo's Meatballs,Colson Montgomery,40262,SS/3B,7,hitters
+4179,Bartolo's Meatballs,Brenton Doyle,36803,OF,7,hitters
+4179,Bartolo's Meatballs,Ben Rice,40255,C/1B,6,hitters
+4179,Bartolo's Meatballs,Travis Bazzana,45709,2B,6,hitters
+4179,Bartolo's Meatballs,Kyle Manzardo,40508,1B,6,hitters
+4179,Bartolo's Meatballs,Chase DeLauter,42176,OF,4,hitters
+4179,Bartolo's Meatballs,Zach McKinstry,33147,SS/3B/OF,4,hitters
+4179,Bartolo's Meatballs,Bryce Eldridge,44147,1B,4,hitters
+4179,Bartolo's Meatballs,Mark Vientos,26857,3B,3,hitters
+4179,Bartolo's Meatballs,Dillon Dingler,38308,C,3,hitters
+4179,Bartolo's Meatballs,Nick Castellanos,14914,OF,2,hitters
+4179,Bartolo's Meatballs,Chase Meidroth,42304,2B/SS,1,hitters
+4179,Bartolo's Meatballs,Mickey Moniak,23639,OF,1,hitters
+4179,Bartolo's Meatballs,Nathan Eovaldi,9335,SP,11,pitchers
+4179,Bartolo's Meatballs,Nick Pivetta,19398,SP,11,pitchers
+4179,Bartolo's Meatballs,Pete Fairbanks,20435,RP,9,pitchers
+4179,Bartolo's Meatballs,Brandon Woodruff,23693,SP,8,pitchers
+4179,Bartolo's Meatballs,Clay Holmes,23790,SP,8,pitchers
+4179,Bartolo's Meatballs,Griffin Jax,31438,RP,8,pitchers
+4179,Bartolo's Meatballs,Ryan Pepiot,37649,SP,7,pitchers
+4179,Bartolo's Meatballs,Trey Yesavage,45790,SP/RP,7,pitchers
+4179,Bartolo's Meatballs,Drew Rasmussen,35922,SP,6,pitchers
+4179,Bartolo's Meatballs,Brayan Bello,33767,SP,5,pitchers
+4179,Bartolo's Meatballs,Shane Smith,42592,SP,3,pitchers
+4179,Bartolo's Meatballs,Tyler Rogers,19904,RP,3,pitchers
+4179,Bartolo's Meatballs,Parker Messick,42765,SP,2,pitchers
+4179,Bartolo's Meatballs,Andrew Kittredge,27995,RP,1,pitchers
+4179,Bartolo's Meatballs,Tanner Scott,21075,RP,1,pitchers
+4179,Bartolo's Meatballs,Clayton Beeter,38428,RP,1,pitchers
+4179,Bartolo's Meatballs,Reid Detmers,38328,RP,1,pitchers
+4179,Bartolo's Meatballs,Kirby Yates,6175,RP,1,pitchers
+4098,Vance Munson VagHawks,Corbin Carroll,37182,OF,37,hitters
+4098,Vance Munson VagHawks,Matt Olson,18386,1B,31,hitters
+4098,Vance Munson VagHawks,Munetaka Murakami,48240,3B,19,hitters
+4098,Vance Munson VagHawks,Brandon Nimmo,18126,OF,18,hitters
+4098,Vance Munson VagHawks,Riley Greene,36509,OF,16,hitters
+4098,Vance Munson VagHawks,Oneil Cruz,32291,OF,15,hitters
+4098,Vance Munson VagHawks,Jackson Holliday,42126,2B/SS,14,hitters
+4098,Vance Munson VagHawks,Ezequiel Tovar,35628,SS,12,hitters
+4098,Vance Munson VagHawks,Samuel Basallo,39288,C/1B,9,hitters
+4098,Vance Munson VagHawks,Dansby Swanson,18506,SS,8,hitters
+4098,Vance Munson VagHawks,Noelvi Marte,36030,3B/OF,7,hitters
+4098,Vance Munson VagHawks,Addison Barger,34817,3B/OF,6,hitters
+4098,Vance Munson VagHawks,Luis García Jr.,33548,2B,6,hitters
+4098,Vance Munson VagHawks,Ethan Holliday,47552,Util,6,hitters
+4098,Vance Munson VagHawks,Moises Ballesteros,39285,C,5,hitters
+4098,Vance Munson VagHawks,Emmanuel Rodriguez,38456,OF,5,hitters
+4098,Vance Munson VagHawks,Alec Burleson,38368,1B/OF,5,hitters
+4098,Vance Munson VagHawks,Colby Thomas,42746,OF,4,hitters
+4098,Vance Munson VagHawks,Colt Emerson,44248,SS,4,hitters
+4098,Vance Munson VagHawks,Drake Baldwin,42221,C,4,hitters
+4098,Vance Munson VagHawks,Braden Montgomery,45739,OF,4,hitters
+4098,Vance Munson VagHawks,Michael Arroyo,41180,2B,2,hitters
+4098,Vance Munson VagHawks,Tarik Skubal,35204,SP,45,pitchers
+4098,Vance Munson VagHawks,Roki Sasaki,46091,SP,20,pitchers
+4098,Vance Munson VagHawks,Shane Baz,23794,SP,14,pitchers
+4098,Vance Munson VagHawks,Grayson Rodriguez,33612,RP,12,pitchers
+4098,Vance Munson VagHawks,Camilo Doval,32051,RP,8,pitchers
+4098,Vance Munson VagHawks,Jonah Tong,43841,SP,7,pitchers
+4098,Vance Munson VagHawks,Jared Jones,38361,RP,6,pitchers
+4098,Vance Munson VagHawks,Zebby Matthews,42653,SP,5,pitchers
+4098,Vance Munson VagHawks,Louis Varland,37202,RP,4,pitchers
+4098,Vance Munson VagHawks,Logan Henderson,42312,SP,4,pitchers
+4098,Vance Munson VagHawks,Sean Manaea,18257,SP,4,pitchers
+4098,Vance Munson VagHawks,Adrian Morejon,23672,RP,4,pitchers
+4098,Vance Munson VagHawks,Brandon Pfaadt,38699,SP,3,pitchers
+4098,Vance Munson VagHawks,Shawn Armstrong,18558,RP,2,pitchers
+4098,Vance Munson VagHawks,Hunter Harvey,18283,RP,1,pitchers
+4098,Vance Munson VagHawks,Chris Bassitt,18398,SP,1,pitchers
+4098,Vance Munson VagHawks,Spencer Arrighetti,40615,SP,1,pitchers
+4098,Vance Munson VagHawks,Gage Jump,46221,SP,1,pitchers
+4098,Vance Munson VagHawks,DJ Herz,37942,RP,1,pitchers
+4098,Vance Munson VagHawks,Jaxon Wiggins,44703,SP,1,pitchers
+4146,The Baseball Team,Vladimir Guerrero Jr.,18549,1B,51,hitters
+4146,The Baseball Team,Roman Anthony,42409,OF,19,hitters
+4146,The Baseball Team,Dylan Crews,43950,OF,15,hitters
+4146,The Baseball Team,Matt McLain,40371,2B,10,hitters
+4146,The Baseball Team,Nick Kurtz,45716,1B,10,hitters
+4146,The Baseball Team,Jasson Dominguez,37635,OF,9,hitters
+4146,The Baseball Team,Colt Keith,38374,1B/2B/3B,8,hitters
+4146,The Baseball Team,Andy Pages,33949,OF,7,hitters
+4146,The Baseball Team,Kristian Campbell,44308,1B/2B/OF,7,hitters
+4146,The Baseball Team,Jacob Wilson,44003,SS,7,hitters
+4146,The Baseball Team,Spencer Torkelson,38320,1B,6,hitters
+4146,The Baseball Team,Jordan Lawlar,40260,2B/SS/3B,6,hitters
+4146,The Baseball Team,Owen Caissie,38367,OF,5,hitters
+4146,The Baseball Team,Alejandro Kirk,27207,C,5,hitters
+4146,The Baseball Team,Carson Benge,45947,OF,5,hitters
+4146,The Baseball Team,Chandler Simpson,42416,OF,4,hitters
+4146,The Baseball Team,Jett Williams,42175,2B/SS/OF,4,hitters
+4146,The Baseball Team,Harry Ford,40675,C,4,hitters
+4146,The Baseball Team,Brady House,40261,3B,4,hitters
+4146,The Baseball Team,Aidan Miller,44052,SS,3,hitters
+4146,The Baseball Team,Walker Jenkins,43988,OF,3,hitters
+4146,The Baseball Team,Josue De Paula,41342,OF,3,hitters
+4146,The Baseball Team,Max Clark,43893,OF,3,hitters
+4146,The Baseball Team,Zyhir Hope,44114,OF,2,hitters
+4146,The Baseball Team,Spencer Strider,38736,SP,31,pitchers
+4146,The Baseball Team,Blake Snell,18460,SP,29,pitchers
+4146,The Baseball Team,Sandy Alcantara,20732,SP,13,pitchers
+4146,The Baseball Team,Shane Bieber,23814,SP,11,pitchers
+4146,The Baseball Team,Rhett Lowder,43895,SP/RP,8,pitchers
+4146,The Baseball Team,Jacob Misiorowski,42711,SP,8,pitchers
+4146,The Baseball Team,Cade Horton,42719,SP,8,pitchers
+4146,The Baseball Team,Brandon Sproat,44534,SP/RP,6,pitchers
+4146,The Baseball Team,AJ Smith-Shawver,40707,SP,5,pitchers
+4146,The Baseball Team,Mick Abel,38330,SP,5,pitchers
+4146,The Baseball Team,Ryan Weathers,33670,SP,5,pitchers
+4146,The Baseball Team,Alex Vesia,35532,RP,4,pitchers
+4146,The Baseball Team,Tony Santillan,22679,RP,3,pitchers
+4146,The Baseball Team,George Klassen,44589,SP,3,pitchers
+4146,The Baseball Team,Steven Okert,18421,RP,2,pitchers

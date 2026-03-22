@@ -1,0 +1,580 @@
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+from rapidfuzz import process, fuzz
+from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary, value, PULP_CBC_CMD
+import time
+from datetime import datetime
+
+# ── Configuration ────────────────────────────────────────────────────────────
+LEAGUE_ID = "569"
+import os
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+if not os.path.exists(DATA_DIR):
+    DATA_DIR = os.path.dirname(__file__)
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.fangraphs.com/',
+    'Origin': 'https://www.fangraphs.com',
+    'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Microsoft Edge";v="144"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+}
+
+def make_api_request(url, timeout=30):
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=timeout)
+        if response.status_code != 200:
+            print(f"  HTTP {response.status_code} for {url[:80]}...")
+            return None
+        return response
+    except Exception as e:
+        print(f"API request failed for {url}: {e}")
+        return None
+
+
+# ── FanGraphs Auth & Projection Fetcher ──────────────────────────────────────
+FG_LOGIN_URL = 'https://blogs.fangraphs.com/wp-login.php'
+FG_PROJ_URL = 'https://www.fangraphs.com/api/projections?type={type}&stats={stats}&pos=all&team=0&players=0&lg=all'
+
+PROJECTION_ENDPOINTS = {
+    'OOPSY': {
+        'hitting': {'type': 'oopsy', 'stats': 'bat'},
+        'pitching': {'type': 'oopsy', 'stats': 'pit'},
+    },
+    'ATC': {
+        'hitting': {'type': 'atc', 'stats': 'bat'},
+        'pitching': {'type': 'atc', 'stats': 'pit'},
+    },
+    'OOPSY DC': {
+        'hitting': {'type': 'oopsydc', 'stats': 'bat'},
+        'pitching': {'type': 'oopsydc', 'stats': 'pit'},
+    },
+    'ATC DC': {
+        'hitting': {'type': 'atcdc', 'stats': 'bat'},
+        'pitching': {'type': 'atcdc', 'stats': 'pit'},
+    },
+}
+
+def get_fangraphs_session(username, password):
+    """Log into FanGraphs via WordPress and return an authenticated session."""
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    # First GET the login page to grab the test cookie
+    session.get(FG_LOGIN_URL, timeout=30)
+
+    login_data = {
+        'log': username,
+        'pwd': password,
+        'wp-submit': 'Sign In',
+        'rememberme': 'forever',
+        'redirect_to': 'https://www.fangraphs.com/',
+        'testcookie': '1',
+    }
+
+    resp = session.post(
+        FG_LOGIN_URL,
+        data=login_data,
+        headers={
+            'Referer': FG_LOGIN_URL,
+            'Origin': 'https://blogs.fangraphs.com',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout=30,
+        allow_redirects=True
+    )
+
+    # Check we got a logged-in cookie (either wordpress_logged_in or wordpress_sec)
+    logged_in = any(
+        'wordpress_logged_in' in c or 'wordpress_sec' in c 
+        for c in session.cookies.keys()
+    )
+    if not logged_in:
+        raise Exception(f"FanGraphs login failed (status {resp.status_code})")
+
+    print("  FanGraphs login successful")
+    return session
+
+
+def fetch_projections(projection_system='OOPSY', username=None, password=None):
+    """Fetch projection data from FanGraphs API for the given system.
+    Returns (hitting_df, pitching_df) or raises on failure.
+    """
+    session = get_fangraphs_session(username, password)
+    endpoints = PROJECTION_ENDPOINTS[projection_system]
+    results = {}
+
+    for slot, params in endpoints.items():
+        url = FG_PROJ_URL.format(**params)
+        resp = session.get(url, timeout=30)
+        if resp.status_code != 200:
+            raise Exception(f"Projection fetch failed for {projection_system} {slot}: HTTP {resp.status_code}")
+
+        data = resp.json()
+        # API returns a list directly or {"data": [...]}
+        rows = data if isinstance(data, list) else data.get('data', [])
+        if not rows:
+            raise Exception(f"No projection data returned for {projection_system} {slot}")
+
+        df = pd.DataFrame(rows)
+        df = df.rename(columns={'playerid': 'fg_id', 'PlayerName': 'Name'})
+        # Ensure PlayerId rename also covered
+        if 'PlayerId' in df.columns:
+            df = df.rename(columns={'PlayerId': 'fg_id'})
+        df['fg_id'] = df['fg_id'].astype(str).str.strip()
+
+        # Ensure FPTS column exists
+        if 'FPTS' not in df.columns:
+            fpts_candidates = [c for c in df.columns if 'fpts' in c.lower() or 'pts' in c.lower()]
+            if fpts_candidates:
+                df = df.rename(columns={fpts_candidates[0]: 'FPTS'})
+            else:
+                raise Exception(f"No FPTS column found in {projection_system} {slot} projection data. Columns: {df.columns.tolist()}")
+
+        results[slot] = df
+        print(f"  Fetched {projection_system} {slot} projections: {len(df)} players")
+        time.sleep(1)
+
+    return results['hitting'], results['pitching']
+
+
+# ── FA Position Scraper ───────────────────────────────────────────────────────
+# Hitter positions: scraped from FanGraphs JSON API (accurate, no auth needed)
+# Pitcher positions: scraped from FanGraphs JSON API using stats=sta/rel
+HITTER_POSITIONS = ['c', '1b', '2b', 'ss', '3b', 'of']
+PITCHER_POSITIONS = [('sta', 'SP'), ('rel', 'RP')]
+FANGRAPHS_API_URL = (
+    "https://www.fangraphs.com/api/leaders/major-league/data"
+    "?pos={pos}&stats={stats}&lg=all&qual=0&season=2025&season1=2025"
+    "&month=0&team=0&pageitems=2000000000&pagenum=1&ind=0&rost=0"
+    "&type=8&fl={league_id}&ft=-1"
+)
+
+def get_fa_positions():
+    """Build an accurate fg_id -> position map for FA hitters and pitchers
+    using the FanGraphs JSON API.
+    Hitters: one request per position (C, 1B, 2B, SS, 3B, OF)
+    Pitchers: stats=sta -> SP, stats=rel -> RP (combined if both)
+    """
+    fa_pos_map = {}  # fg_id -> position string
+
+    # ── Hitters ──────────────────────────────────────────────────────────────
+    for pos in HITTER_POSITIONS:
+        url = FANGRAPHS_API_URL.format(pos=pos, stats='bat', league_id=LEAGUE_ID)
+        response = make_api_request(url)
+        if not response:
+            print(f"  FA position fetch failed for {pos.upper()}")
+            time.sleep(2)
+            continue
+
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"  FA position JSON parse failed for {pos.upper()}: {e}")
+            time.sleep(2)
+            continue
+
+        rows = data.get('data', [])
+        if not rows:
+            print(f"  No data rows for {pos.upper()}")
+            time.sleep(2)
+            continue
+
+        pos_label = pos.upper()
+        count = 0
+        for row in rows:
+            fg_id = str(row.get('playerid', '')).strip()
+            if not fg_id or fg_id == 'nan':
+                continue
+            if fg_id in fa_pos_map:
+                if pos_label not in fa_pos_map[fg_id]:
+                    fa_pos_map[fg_id] = fa_pos_map[fg_id] + '/' + pos_label
+            else:
+                fa_pos_map[fg_id] = pos_label
+            count += 1
+
+        print(f"  FA positions fetched: {pos_label} ({count} players)")
+        time.sleep(1)
+
+    # ── Pitchers ─────────────────────────────────────────────────────────────
+    for stats_param, pos_label in PITCHER_POSITIONS:
+        url = FANGRAPHS_API_URL.format(pos='all', stats=stats_param, league_id=LEAGUE_ID)
+        response = make_api_request(url)
+        if not response:
+            print(f"  FA position fetch failed for {pos_label}")
+            time.sleep(2)
+            continue
+
+        try:
+            data = response.json()
+        except Exception as e:
+            print(f"  FA position JSON parse failed for {pos_label}: {e}")
+            time.sleep(2)
+            continue
+
+        rows = data.get('data', [])
+        if not rows:
+            print(f"  No data rows for {pos_label}")
+            time.sleep(2)
+            continue
+
+        count = 0
+        for row in rows:
+            fg_id = str(row.get('playerid', '')).strip()
+            if not fg_id or fg_id == 'nan':
+                continue
+            if fg_id in fa_pos_map:
+                if pos_label not in fa_pos_map[fg_id]:
+                    fa_pos_map[fg_id] = fa_pos_map[fg_id] + '/' + pos_label
+            else:
+                fa_pos_map[fg_id] = pos_label
+            count += 1
+
+        print(f"  FA positions fetched: {pos_label} ({count} players)")
+        time.sleep(1)
+
+    print(f"  Total FA position entries: {len(fa_pos_map)}")
+    return fa_pos_map
+
+
+# ── Step 1: Scrape League Rosters ────────────────────────────────────────────
+def get_league_rosters():
+    """Scrape all team rosters and salaries for the full league."""
+    all_players = []
+
+    league_url = f"https://ottoneu.fangraphs.com/{LEAGUE_ID}/standings"
+    response = make_api_request(league_url)
+    if not response:
+        print("Failed to fetch league standings page")
+        return pd.DataFrame()
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    team_links = {}
+    for link in soup.find_all('a', href=True):
+        href = link['href']
+        if f'/{LEAGUE_ID}/team/' in href:
+            team_id = href.split('/team/')[-1].strip('/')
+            team_name = link.get_text(strip=True)
+            if team_id.isdigit() and team_name:
+                team_links[team_id] = team_name
+
+    print(f"Found {len(team_links)} teams")
+
+    for team_id, team_name in team_links.items():
+        print(f"  Scraping {team_name}...")
+        roster_url = f"https://ottoneu.fangraphs.com/{LEAGUE_ID}/team/{team_id}"
+        response = make_api_request(roster_url)
+        if not response:
+            print(f"  Failed to fetch roster for {team_name}")
+            continue
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        for table_id in ['hitters', 'pitchers']:
+            table = soup.find('table', {'id': table_id})
+            if not table:
+                continue
+
+            for row in table.find_all('tr')[1:]:
+                cells = row.find_all('td')
+                if len(cells) < 4:
+                    continue
+
+                player_link = cells[0].find('a')
+                if not player_link:
+                    continue
+
+                player_name = player_link.get_text(strip=True)
+
+                href = player_link.get('href', '')
+                fg_id = None
+                if 'playerid=' in href:
+                    fg_id = href.split('playerid=')[-1].split('&')[0]
+                elif '/players/' in href:
+                    fg_id = href.split('/players/')[-1].strip('/')
+
+                position = cells[2].get_text(strip=True)
+                salary_text = cells[1].get_text(strip=True).replace('$', '').replace(',', '')
+                try:
+                    salary = int(salary_text)
+                except ValueError:
+                    salary = 0
+
+                all_players.append({
+                    'team_id': team_id,
+                    'team_name': team_name,
+                    'player_name': player_name,
+                    'fg_id': fg_id,
+                    'position': position,
+                    'salary': salary,
+                    'player_type': table_id
+                })
+
+        time.sleep(3)
+
+    df = pd.DataFrame(all_players)
+    print(f"\nTotal players scraped: {len(df)} across {df['team_name'].nunique()} teams")
+
+    # Save timestamp of successful scrape
+    timestamp_path = os.path.join(DATA_DIR, 'roster_scrape_timestamp.txt')
+    with open(timestamp_path, 'w') as f:
+        f.write(datetime.now().strftime('%Y-%m-%d %H:%M'))
+    
+    return df
+
+
+# ── Step 2: Fuzzy Match Fallback ─────────────────────────────────────────────
+def fuzzy_match_players(unmatched_rosters, projection_df, threshold=90):
+    """Fallback name matcher for players missing crosswalk IDs."""
+    projection_names = projection_df['Name'].tolist()
+    results = []
+
+    for _, row in unmatched_rosters.iterrows():
+        match = process.extractOne(
+            row['player_name'],
+            projection_names,
+            scorer=fuzz.token_sort_ratio
+        )
+
+        if match and match[1] >= threshold:
+            matched_row = projection_df[projection_df['Name'] == match[0]].iloc[0]
+            results.append({
+                'player_name': row['player_name'],
+                'matched_name': match[0],
+                'confidence': match[1],
+                'fg_id': matched_row['fg_id'],
+                'FPTS': matched_row['FPTS'],
+                'team_name': row['team_name'],
+                'needs_review': match[1] < 95
+            })
+        else:
+            results.append({
+                'player_name': row['player_name'],
+                'matched_name': None,
+                'confidence': match[1] if match else 0,
+                'fg_id': None,
+                'FPTS': 0,
+                'team_name': row['team_name'],
+                'needs_review': True
+            })
+
+    return pd.DataFrame(results)
+
+
+def optimize_lineup(team_df):
+    """Optimize lineup assignment using two-phase approach:
+    Phase 1: Fill all constrained positions optimally (excluding Util)
+    Phase 2: Best remaining eligible player goes to Util
+    """
+    slots_phase1 = {
+        'C':    ['C'],
+        '1B':   ['1B'],
+        '2B':   ['2B'],
+        'SS':   ['SS'],
+        '3B':   ['3B'],
+        'MI':   ['2B', 'SS'],
+        'OF1':  ['OF'],
+        'OF2':  ['OF'],
+        'OF3':  ['OF'],
+        'OF4':  ['OF'],
+        'OF5':  ['OF'],
+        'SP1':  ['SP'],
+        'SP2':  ['SP'],
+        'SP3':  ['SP'],
+        'SP4':  ['SP'],
+        'SP5':  ['SP'],
+        'RP1':  ['RP'],
+        'RP2':  ['RP'],
+        'RP3':  ['RP'],
+        'RP4':  ['RP'],
+        'RP5':  ['RP'],
+    }
+
+    util_eligible = ['C', '1B', '2B', 'SS', '3B', 'OF']
+
+    def get_positions(pos_string):
+        if pd.isna(pos_string):
+            return []
+        return [p.strip() for p in str(pos_string).split('/')]
+
+    team_df = team_df.copy()
+    team_df['pos_list'] = team_df['position'].apply(get_positions)
+    team_df['FPTS'] = team_df['FPTS'].fillna(0).clip(lower=0)
+
+    players = team_df.index.tolist()
+    slot_names = list(slots_phase1.keys())
+
+    # ── Phase 1: Optimize all positions except Util ───────────────────────────
+    prob = LpProblem("lineup_phase1", LpMaximize)
+    x = {(p, s): LpVariable(f"x_{p}_{s}", cat=LpBinary)
+         for p in players for s in slot_names}
+
+    prob += lpSum(team_df.loc[p, 'FPTS'] * x[p, s]
+                  for p in players for s in slot_names)
+
+    for p in players:
+        prob += lpSum(x[p, s] for s in slot_names) <= 1
+
+    for s in slot_names:
+        prob += lpSum(x[p, s] for p in players) <= 1
+
+    for p in players:
+        player_positions = team_df.loc[p, 'pos_list']
+        for s in slot_names:
+            if not any(pos in slots_phase1[s] for pos in player_positions):
+                prob += x[p, s] == 0
+
+    prob.solve(PULP_CBC_CMD(msg=0))
+
+    # Extract Phase 1 assignments
+    assigned = []
+    assigned_players = set()
+
+    for p in players:
+        for s in slot_names:
+            if value(x[p, s]) == 1:
+                assigned.append({
+                    'player_name': team_df.loc[p, 'player_name'],
+                    'slot': s,
+                    'position': team_df.loc[p, 'position'],
+                    'FPTS': team_df.loc[p, 'FPTS']
+                })
+                assigned_players.add(p)
+    
+    # Sort SP and RP slots by FPTS descending for clean display
+    pitcher_slots = [a for a in assigned if a['slot'].startswith('SP') or a['slot'].startswith('RP')]
+    non_pitcher_slots = [a for a in assigned if not a['slot'].startswith('SP') and not a['slot'].startswith('RP')]
+
+    sp_assigned = sorted([a for a in pitcher_slots if a['slot'].startswith('SP')], 
+                        key=lambda x: x['FPTS'], reverse=True)
+    rp_assigned = sorted([a for a in pitcher_slots if a['slot'].startswith('RP')], 
+                        key=lambda x: x['FPTS'], reverse=True)
+
+    for i, a in enumerate(sp_assigned):
+        a['slot'] = f'SP{i+1}'
+    for i, a in enumerate(rp_assigned):
+        a['slot'] = f'RP{i+1}'
+
+    assigned = non_pitcher_slots + sp_assigned + rp_assigned
+
+    # ── Phase 2: Best remaining Util-eligible player fills Util ──────────────
+    unassigned = team_df[~team_df.index.isin(assigned_players)].copy()
+    util_candidates = unassigned[
+        unassigned['pos_list'].apply(
+            lambda positions: any(pos in util_eligible for pos in positions)
+        )
+    ].sort_values('FPTS', ascending=False)
+
+    if len(util_candidates) > 0:
+        util_player = util_candidates.iloc[0]
+        assigned.append({
+            'player_name': util_player['player_name'],
+            'slot': 'Util',
+            'position': util_player['position'],
+            'FPTS': util_player['FPTS']
+        })
+
+    total_fpts = sum(a['FPTS'] for a in assigned)
+    return total_fpts, pd.DataFrame(assigned)
+
+
+# ── Main Pipeline ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+
+    # 1. Scrape rosters
+    rosters = get_league_rosters()
+    rosters.to_csv(os.path.join(DATA_DIR, 'league_rosters.csv'), index=False)
+
+    # 2. Load projections
+    atc_hitting = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy hitting 2026.csv'))
+    atc_pitching = pd.read_csv(os.path.join(DATA_DIR, 'fangraphs-leaderboard-projections_oopsy pitching 2026.csv'))
+    atc_hitting = atc_hitting.rename(columns={'PlayerId': 'fg_id'})
+    atc_pitching = atc_pitching.rename(columns={'PlayerId': 'fg_id'})
+
+    # 3. Load and clean crosswalk
+    crosswalk = pd.read_csv(os.path.join(DATA_DIR, 'sfbb_crosswalk.csv'))
+    crosswalk = crosswalk.drop_duplicates(subset='OTTONEUID')
+    crosswalk['OTTONEUID'] = crosswalk['OTTONEUID'].fillna('').apply(
+        lambda x: str(int(float(x))) if x != '' else '').str.strip()
+    crosswalk['IDFANGRAPHS'] = crosswalk['IDFANGRAPHS'].astype(str).str.strip()
+
+    # 4. Standardize IDs
+    rosters['fg_id'] = rosters['fg_id'].astype(str).str.strip()
+    atc_hitting['fg_id'] = atc_hitting['fg_id'].astype(str).str.strip()
+    atc_pitching['fg_id'] = atc_pitching['fg_id'].astype(str).str.strip()
+
+    # 5. Merge rosters with crosswalk, then with projections
+    rosters_with_fgid = rosters.merge(
+        crosswalk[['OTTONEUID', 'IDFANGRAPHS']],
+        left_on='fg_id', right_on='OTTONEUID', how='left'
+    )
+
+    roster_hitters = rosters_with_fgid[rosters_with_fgid['player_type'] == 'hitters']
+    roster_pitchers = rosters_with_fgid[rosters_with_fgid['player_type'] == 'pitchers']
+
+    hitters_merged = roster_hitters.merge(
+        atc_hitting[['fg_id', 'Name', 'FPTS']], left_on='IDFANGRAPHS', right_on='fg_id', how='left')
+    pitchers_merged = roster_pitchers.merge(
+        atc_pitching[['fg_id', 'Name', 'FPTS']], left_on='IDFANGRAPHS', right_on='fg_id', how='left')
+
+    all_players_projected = pd.concat([hitters_merged, pitchers_merged], ignore_index=True)
+
+    # 6. Fill missing FPTS
+    all_players_projected['FPTS'] = all_players_projected['FPTS'].fillna(0)
+
+    # 7. Fix Ohtani two-way contribution
+    ohtani_hitting_fpts = atc_hitting[
+        atc_hitting['Name'].str.contains('Ohtani', case=False)]['FPTS'].values[0]
+    ohtani_mask = all_players_projected['player_name'].str.contains('Ohtani', case=False)
+    all_players_projected.loc[ohtani_mask, 'FPTS'] += ohtani_hitting_fpts
+
+    # 8. Fuzzy match fallback for remaining missing projections
+    missing_hitters = all_players_projected[
+        (all_players_projected['FPTS'] == 0) & (all_players_projected['player_type'] == 'hitters')]
+    missing_pitchers = all_players_projected[
+        (all_players_projected['FPTS'] == 0) & (all_players_projected['player_type'] == 'pitchers')]
+
+    fuzzy_hitters = fuzzy_match_players(missing_hitters, atc_hitting)
+    fuzzy_pitchers = fuzzy_match_players(missing_pitchers, atc_pitching)
+
+    for _, match_row in pd.concat([fuzzy_hitters, fuzzy_pitchers]).iterrows():
+        if match_row['FPTS'] > 0:
+            mask = ((all_players_projected['player_name'] == match_row['player_name']) &
+                    (all_players_projected['team_name'] == match_row['team_name']))
+            all_players_projected.loc[mask, 'FPTS'] = match_row['FPTS']
+
+    # 9. Save full player projections
+    all_players_projected.to_csv(os.path.join(DATA_DIR, 'players_with_projections.csv'), index=False)
+
+    # 10. Optimize lineups and build standings
+    print("\nOptimizing lineups...")
+    team_results = []
+
+    for team_name, team_df in all_players_projected.groupby('team_name'):
+        total_fpts, lineup = optimize_lineup(team_df)
+        team_results.append({
+            'team_name': team_name,
+            'total_salary': team_df['salary'].sum(),
+            'projected_fpts': total_fpts,
+            'num_players': len(team_df),
+        })
+        print(f"  {team_name}: {total_fpts:.1f} pts")
+
+    team_projections = pd.DataFrame(team_results)
+    team_projections = team_projections.sort_values(
+        'projected_fpts', ascending=False).reset_index(drop=True)
+    team_projections.index += 1
+
+    print("\n=== 2026 Projected Standings (Optimized Lineups) ===")
+    print(team_projections.to_string())
+
+    team_projections.to_csv(os.path.join(DATA_DIR, 'team_projections.csv'), index=True)
