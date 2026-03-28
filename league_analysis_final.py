@@ -252,6 +252,54 @@ def get_fa_positions():
     print(f"  Total FA position entries: {len(fa_pos_map)}")
     return fa_pos_map
 
+def get_actual_standings():
+    """Scrape actual cumulative FPTS and IP used from Ottoneu standings page."""
+    url = f"https://ottoneu.fangraphs.com/{LEAGUE_ID}/standings"
+    response = make_api_request(url)
+    if not response:
+        print("  Failed to fetch actual standings")
+        return {}
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    results = {}
+
+    # Main standings table — Pts is column index 1
+    main_table = soup.find('table', {'id': 'standings'}) or soup.find('table')
+    if main_table:
+        for row in main_table.find_all('tr')[1:]:
+            cells = row.find_all('td')
+            if len(cells) < 2:
+                continue
+            team_link = cells[0].find('a')
+            if not team_link:
+                continue
+            team_name = team_link.get_text(strip=True).strip()
+            try:
+                pts = float(cells[1].get_text(strip=True).replace(',', ''))
+            except (ValueError, IndexError):
+                continue
+            results[team_name] = {'actual_fpts': pts}
+
+    # Games played table — IP is last column
+    gp_table = soup.find('table', {'id': 'gamesPlayed'})
+    if gp_table:
+        for row in gp_table.find_all('tr')[1:]:
+            cells = row.find_all('td')
+            if len(cells) < 2:
+                continue
+            team_link = cells[0].find('a')
+            if not team_link:
+                continue
+            team_name = team_link.get_text(strip=True).strip()
+            try:
+                ip = float(cells[-1].get_text(strip=True).replace(',', ''))
+            except (ValueError, IndexError):
+                ip = 0
+            if team_name in results:
+                results[team_name]['ip_used'] = ip
+
+    print(f"  Actual standings scraped: {len(results)} teams")
+    return results
 
 # ── Step 1: Scrape League Rosters ────────────────────────────────────────────
 def get_league_rosters():

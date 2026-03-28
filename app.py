@@ -120,7 +120,7 @@ sys.path.append(os.path.dirname(__file__))
 from league_analysis_final import (
     get_league_rosters, fuzzy_match_players, optimize_lineup,
     make_api_request, get_fa_positions, fetch_projections,
-    get_pitching_report, get_all_team_stats, DATA_DIR, LEAGUE_ID
+    get_pitching_report, get_all_team_stats, get_actual_standings, DATA_DIR, LEAGUE_ID
 )
 
 # ── Data Loading (cached weekly) ──────────────────────────────────────────────
@@ -304,7 +304,14 @@ def load_all_data(projection_system='OOPSY'):
 
     return all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, proj_source, datetime.now(), projection_system
 
-
+@st.cache_data(ttl=86400)
+def load_actual_standings():
+    """Load actual FPTS from Ottoneu — refreshes daily."""
+    try:
+        return get_actual_standings()
+    except Exception as e:
+        print(f"Actual standings fetch failed: {e}")
+        return {}
 
 # ── Sidebar (projection toggle must be declared BEFORE data load) ─────────────
 with st.sidebar:
@@ -351,6 +358,25 @@ with st.sidebar:
 with st.spinner("Loading league data..."):
     all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, proj_source, last_updated, active_proj_system = load_all_data(proj_system)
 
+from datetime import date
+actual_standings = load_actual_standings()
+SEASON_START = date(2026, 3, 27)
+SEASON_END = date(2026, 9, 28)
+today = date.today()
+season_progress = max(0.0, min(1.0, (today - SEASON_START).days / (SEASON_END - SEASON_START).days))
+season_remaining = 1.0 - season_progress
+
+def blend_fpts(team_name, projected_fpts):
+    actual = actual_standings.get(team_name, {}).get('actual_fpts', 0)
+    remaining = projected_fpts * season_remaining
+    return round(actual + remaining, 1)
+
+standings['Blended FPTS'] = standings['Team'].apply(
+    lambda t: blend_fpts(t, standings.loc[standings['Team'] == t, 'Projected FPTS'].values[0]))
+standings = standings.sort_values('Blended FPTS', ascending=False).reset_index(drop=True)
+standings['Rank'] = standings.index + 1
+standings = standings[['Rank', 'Team', 'Blended FPTS', 'Projected FPTS', 'Salary', 'Players']]
+
 # ── Sidebar (data-dependent widgets rendered after load) ──────────────────────
 with st.sidebar:
     # Roster freshness
@@ -385,7 +411,7 @@ if page == "Standings":
     st.markdown("# Projected Standings")
     st.markdown(f"""
     <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
-    All data based on 2026 {active_proj_system} preseason projections, with team-level totals optimized across starters vs. bench. Don't take data at face value — may be lurking inaccuracies.
+    Blended FPTS = actual points scored to date + remaining {active_proj_system} projected points ({round(season_remaining*100, 1)}% of season remaining).
     </p>
     """, unsafe_allow_html=True)
     st.markdown(f'<p class="last-updated">Last updated: {last_updated.strftime("%b %d, %Y %I:%M %p")}</p>',
@@ -393,8 +419,8 @@ if page == "Standings":
 
     col1, col2, col3 = st.columns(3)
     top_team = standings.iloc[0]
-    avg_fpts = standings['Projected FPTS'].mean()
-    spread = standings['Projected FPTS'].iloc[0] - standings['Projected FPTS'].iloc[-1]
+    avg_fpts = standings['Blended FPTS'].mean()
+    spread = standings['Blended FPTS'].iloc[0] - standings['Blended FPTS'].iloc[-1]
 
     with col1:
         st.markdown(f'''<div class="metric-card">
@@ -457,7 +483,7 @@ elif page == "Team Detail":
         'player_name': 'Player', 'position': 'POS', 'salary': 'Salary', 'FPTS': 'Proj FPTS'
     })
     starters['Proj FPTS'] = starters['Proj FPTS'].round(1)
-    st.dataframe(starters, use_container_width=True, hide_index=True)
+    st.dataframe(starters, width='stretch', hide_index=True)
 
     # Bench
     st.markdown('<p class="section-header">Bench</p>', unsafe_allow_html=True)
@@ -467,7 +493,7 @@ elif page == "Team Detail":
         'player_name': 'Player', 'position': 'POS', 'salary': 'Salary', 'FPTS': 'Proj FPTS'
     })
     bench['Proj FPTS'] = bench['Proj FPTS'].round(1)
-    st.dataframe(bench, use_container_width=True, hide_index=True)
+    st.dataframe(bench, width='stretch', hide_index=True)
 
 # ── 3. Positional Breakdown ───────────────────────────────────────────────────
 elif page == "Positional Breakdown":
@@ -510,7 +536,7 @@ elif page == "Positional Breakdown":
     cols = ['Rank', 'Team'] + slot_order
     breakdown_df = breakdown_df[cols]
 
-    st.dataframe(breakdown_df, use_container_width=True, hide_index=True, height=458)
+    st.dataframe(breakdown_df, width='stretch', hide_index=True, height=458)
 
     st.markdown('<p class="section-header">Position Group Totals</p>', unsafe_allow_html=True)
 
@@ -549,7 +575,7 @@ elif page == "Positional Breakdown":
         })
 
     group_df = pd.DataFrame(group_rows).sort_values('Rank').reset_index(drop=True)
-    st.dataframe(group_df, use_container_width=True, hide_index=True, height=458)
+    st.dataframe(group_df, width='stretch', hide_index=True, height=458)
 
 # ── 4. Free Agent Targets ─────────────────────────────────────────────────────
 elif page == "Free Agent Targets":
@@ -644,7 +670,7 @@ elif page == "Free Agent Targets":
 
     st.dataframe(
         upgrade_df.style.applymap(color_gain, subset=['Gain']),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -674,7 +700,7 @@ elif page == "Free Agent Targets":
     })
     fa_display['Proj FPTS'] = fa_display['Proj FPTS'].round(1)
 
-    st.dataframe(fa_display, use_container_width=True, hide_index=True)
+    st.dataframe(fa_display, width='stretch', hide_index=True)
 
 # ── 5. Player Search ──────────────────────────────────────────────────────────
 elif page == "Player Search":
@@ -711,7 +737,7 @@ elif page == "Player Search":
             st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size:13px;">No players found.</p>', unsafe_allow_html=True)
         else:
             st.dataframe(results[['Player', 'Team', 'POS', 'Salary', 'Proj FPTS', 'Status']],
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
     else:
         st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size:13px;">Type a player name to search...</p>',
                     unsafe_allow_html=True)
@@ -779,7 +805,7 @@ elif page == "Head to Head":
                     'player_name': 'Player', 'position': 'POS',
                     'salary': '$', 'FPTS': 'FPTS', 'starter': 'S'
                 })
-                st.dataframe(roster, use_container_width=True, hide_index=True)
+                st.dataframe(roster, width='stretch', hide_index=True)
 
 # ── 7. Pitching Report ────────────────────────────────────────────────────────
 elif page == "Pitching Report":
@@ -847,7 +873,7 @@ elif page == "Pitching Report":
         st.dataframe(
             summary_df.style.applymap(style_grade, subset=['Best Grade']),
             hide_index=True,
-            use_container_width=True
+            width='stretch'
         )
         st.markdown("---")
 
@@ -905,7 +931,7 @@ elif page == "Pitching Report":
                     'BB%': [f"{home_s.get('BB_percent', '—')}%", f"{away_s.get('BB_percent', '—')}%"],
                     'wOBA Against': [home_s.get('wOBA_against', '—'), away_s.get('wOBA_against', '—')],
                 }
-                st.dataframe(pd.DataFrame(splits_data), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame(splits_data), hide_index=True, width='stretch')
 
             # ── This week's matchups ──────────────────────────────────────────
             if matchups:
@@ -932,7 +958,7 @@ elif page == "Pitching Report":
                                 rank_info = rankings.get(stat_key, {})
                                 rank_str = f"#{rank_info['rank']}/{rank_info['total']}" if rank_info else '—'
                                 opp_rows.append({'Stat': stat_label, f'{m["opponent"]} ({m["home_away"]})': val, 'Rank': rank_str})
-                            st.dataframe(pd.DataFrame(opp_rows), hide_index=True, use_container_width=True)
+                            st.dataframe(pd.DataFrame(opp_rows), hide_index=True, width='stretch')
                         else:
                             st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">No opponent stats available yet (season not started)</p>', unsafe_allow_html=True)
 
