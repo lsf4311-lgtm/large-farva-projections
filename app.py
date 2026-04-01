@@ -342,9 +342,6 @@ with st.sidebar:
     )
     proj_system = (proj_base + " DC") if proj_type == "In-Season (DC)" else proj_base
 
-    if proj_type == "In-Season (DC)":
-        st.warning("⚠️ In-season projections aren't available yet — check back Opening Day (March 27).")
-
     st.markdown("---")
 
     if st.button("🔄 Refresh Data"):
