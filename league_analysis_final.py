@@ -54,20 +54,20 @@ PROJECTION_ENDPOINTS = {
         'pitching': {'type': 'atc', 'stats': 'pit'},
     },
     'OOPSY DC': {
-        'hitting': {'type': 'oopsydc', 'stats': 'bat'},
-        'pitching': {'type': 'oopsydc', 'stats': 'pit'},
+        'hitting': {'type': 'roopsydc', 'stats': 'bat'},
+        'pitching': {'type': 'roopsydc', 'stats': 'pit'},
     },
     'ATC DC': {
-        'hitting': {'type': 'atcdc', 'stats': 'bat'},
-        'pitching': {'type': 'atcdc', 'stats': 'pit'},
+        'hitting': {'type': 'ratcdc', 'stats': 'bat'},
+        'pitching': {'type': 'ratcdc', 'stats': 'pit'},
     },
     'THE BAT X': {
         'hitting': {'type': 'thebatx', 'stats': 'bat'},
         'pitching': {'type': 'thebatx', 'stats': 'pit'},
     },
     'THE BAT X DC': {
-        'hitting': {'type': 'thebatxdc', 'stats': 'bat'},
-        'pitching': {'type': 'thebatxdc', 'stats': 'pit'},
+        'hitting': {'type': 'rthebatxdc', 'stats': 'bat'},
+        'pitching': {'type': 'rthebatxdc', 'stats': 'pit'},
     },
 }
 
