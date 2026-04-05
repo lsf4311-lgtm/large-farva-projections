@@ -848,7 +848,14 @@ elif page == "Pitching Report":
             games = len(matchups)
             if matchups:
                 best_grade = min([m['grade'] for m in matchups], key=lambda g: GRADE_ORDER.get(g, 5))
-                opponents = ', '.join([f"{m['opponent']} ({m['home_away'][0]})" for m in matchups])
+                seen_opps = {}
+                for m in matchups:
+                    key = (m['opponent'], m['home_away'][0])
+                    seen_opps[key] = seen_opps.get(key, 0) + 1
+                opponents = ', '.join([
+                    f"{opp} ({loc})" if count == 1 else f"{opp} ({loc})x{count}"
+                    for (opp, loc), count in seen_opps.items()
+                ])
             else:
                 best_grade = '—'
                 opponents = 'No games'
@@ -908,11 +915,11 @@ elif page == "Pitching Report":
                 gap = rotation.get('avg_days_between_starts')
                 parts = []
                 if last:
-                    parts.append(f"Last start: **{last.strftime('%b %d')}**")
+                    parts.append(f"Last start: <strong>{last.strftime('%b %d')}</strong>")
                 if gap:
-                    parts.append(f"Avg rest: **{gap} days**")
+                    parts.append(f"Avg rest: <strong>{gap} days</strong>")
                 if nxt:
-                    parts.append(f"Next predicted: **{nxt.strftime('%b %d')}**")
+                    parts.append(f"Next predicted: <strong>{nxt.strftime('%b %d')}</strong>")
                 if parts:
                     st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">{" · ".join(parts)}</p>', unsafe_allow_html=True)
 
@@ -930,21 +937,38 @@ elif page == "Pitching Report":
                 }
                 st.dataframe(pd.DataFrame(splits_data), hide_index=True, use_container_width=True)
 
-            # ── This week's matchups ──────────────────────────────────────────
+            # ── This week's matchups (collapsed by opponent+location) ─────────
             if matchups:
                 st.markdown('<p class="section-header">This Week\'s Matchups</p>', unsafe_allow_html=True)
+
+                # Collapse repeated opponent+location combos into one card
+                seen = {}
+                collapsed = []
                 for m in matchups:
+                    key = (m['opponent'], m['home_away'])
+                    if key in seen:
+                        seen[key]['game_count'] += 1
+                        seen[key]['dates'].append(m['date'])
+                    else:
+                        entry = {**m, 'game_count': 1, 'dates': [m['date']]}
+                        seen[key] = entry
+                        collapsed.append(entry)
+
+                for m in collapsed:
                     grade = m['grade']
                     grade_color = GRADE_COLORS.get(grade, '#94a3b8')
                     opp_stats = m['opp_stats']
                     rankings = m['rankings']
+                    game_count = m['game_count']
+                    date_label = m['dates'][0] if game_count == 1 else f"{m['dates'][0]} – {m['dates'][-1]}"
+                    games_label = f"{game_count} game{'s' if game_count > 1 else ''}"
 
                     mc1, mc2 = st.columns([1, 3])
                     with mc1:
                         st.markdown(f'''<div class="metric-card" style="text-align:center">
-                            <div class="metric-label">{m["date"]} · {m["home_away"]}</div>
+                            <div class="metric-label">{date_label} · {m["home_away"]}</div>
                             <div style="font-family: IBM Plex Mono, monospace; font-size: 32px; font-weight: 600; color: {grade_color};">{grade}</div>
-                            <div class="metric-label">vs {m["opponent"]}</div>
+                            <div class="metric-label">vs {m["opponent"]} · {games_label}</div>
                         </div>''', unsafe_allow_html=True)
                     with mc2:
                         if opp_stats:
