@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from rapidfuzz import process, fuzz
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary, value, PULP_CBC_CMD
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ── Configuration ────────────────────────────────────────────────────────────
 LEAGUE_ID = "569"
@@ -572,17 +572,31 @@ def _mlb_request(url, params=None, timeout=30):
 
 
 def _get_player_id(name):
-    """Look up MLB player ID by name."""
+    """Look up MLB player ID by name using the stable search endpoint."""
     try:
-        url = f"https://statsapi.mlb.com/api/v1/people/search?names={quote(name.strip())}"
+        # Primary: /api/v1/people?search= (stable, documented endpoint)
+        url = f"https://statsapi.mlb.com/api/v1/people?search={quote(name.strip())}&sportId=1"
         resp = _mlb_request(url)
-        if not resp:
-            return None
-        people = resp.json().get('people', [])
-        for p in people:
-            if p.get('active'):
-                return p.get('id')
-        return people[0].get('id') if people else None
+        if resp:
+            people = resp.json().get('people', [])
+            # Prefer active players; fall back to first result
+            for p in people:
+                if p.get('active'):
+                    return p.get('id')
+            if people:
+                return people[0].get('id')
+
+        # Fallback: search via /api/v1/sports/1/players with name filter
+        url2 = (f"https://statsapi.mlb.com/api/v1/sports/1/players"
+                f"?season={datetime.now().year}&fields=people,id,fullName,active")
+        resp2 = _mlb_request(url2)
+        if resp2:
+            name_lower = name.strip().lower()
+            for p in resp2.json().get('people', []):
+                if p.get('fullName', '').lower() == name_lower:
+                    return p.get('id')
+
+        return None
     except Exception as e:
         print(f"Player ID lookup failed for {name}: {e}")
         return None
@@ -591,7 +605,7 @@ def _get_player_id(name):
 def _get_player_team(player_id):
     """Get player's current team ID and name."""
     try:
-        resp = _mlb_request(f"https://statsapi.mlb.com/api/v1/people/{player_id}")
+        resp = _mlb_request(f"https://statsapi.mlb.com/api/v1/people/{player_id}?hydrate=currentTeam")
         if resp:
             people = resp.json().get('people', [])
             if people:
