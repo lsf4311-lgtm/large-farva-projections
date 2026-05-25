@@ -280,28 +280,37 @@ def get_actual_standings():
                 continue
             results[team_name] = {'actual_fpts': pts}
 
-    # Games played table — IP is last column
+    # Games played table
     gp_table = soup.find('table', {'id': 'gamesPlayed'})
     if gp_table:
         for row in gp_table.find_all('tr')[1:]:
             cells = row.find_all('td')
-            if len(cells) < 2:
+            if len(cells) < 9:
                 continue
             team_link = cells[0].find('a')
             if not team_link:
                 continue
             team_name = team_link.get_text(strip=True).strip()
             try:
-                ip = float(cells[-1].get_text(strip=True).replace(',', ''))
+                ip   = float(cells[-1].get_text(strip=True).replace(',', ''))
+                c    = int(cells[1].get_text(strip=True))
+                b1   = int(cells[2].get_text(strip=True))
+                b2   = int(cells[3].get_text(strip=True))
+                ss   = int(cells[4].get_text(strip=True))
+                mi   = int(cells[5].get_text(strip=True))
+                b3   = int(cells[6].get_text(strip=True))
+                of   = int(cells[7].get_text(strip=True))
+                util = int(cells[8].get_text(strip=True))
+                games_played = round((c + b1 + b2 + ss + mi + b3 + of + util) / 13)
             except (ValueError, IndexError):
                 ip = 0
+                games_played = 0
             if team_name in results:
                 results[team_name]['ip_used'] = ip
+                results[team_name]['games_played'] = games_played
 
     print(f"  Actual standings scraped: {len(results)} teams")
     return results
-
-# ── Step 1: Scrape League Rosters ────────────────────────────────────────────
 def get_league_rosters():
     """Scrape all team rosters and salaries for the full league."""
     all_players = []

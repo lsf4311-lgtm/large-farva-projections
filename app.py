@@ -308,7 +308,8 @@ def load_all_data(projection_system='OOPSY'):
 def load_actual_standings():
     """Load actual FPTS from Ottoneu — refreshes daily."""
     try:
-        return get_actual_standings()
+        result = get_actual_standings()
+        return result if result is not None else {}
     except Exception as e:
         print(f"Actual standings fetch failed: {e}")
         return {}
@@ -324,6 +325,7 @@ with st.sidebar:
         "Free Agent Targets",
         "Player Search",
         "Head to Head",
+        "Trade Analyzer",
         "Pitching Report",
     ])
     st.markdown("---")
@@ -357,11 +359,23 @@ with st.spinner("Loading league data..."):
 
 from datetime import date
 actual_standings = load_actual_standings()
+if actual_standings is None:
+    actual_standings = {}
 SEASON_START = date(2026, 3, 27)
 SEASON_END = date(2026, 9, 28)
+REGULAR_SEASON_END = date(2026, 9, 7)  # caps apply through regular season only
 today = date.today()
+
+# season_progress/remaining uses full season end (for blended FPTS projection)
 season_progress = max(0.0, min(1.0, (today - SEASON_START).days / (SEASON_END - SEASON_START).days))
 season_remaining = 1.0 - season_progress
+
+# reg_season_progress uses regular season end (for pace vs cap calculation)
+reg_season_progress = max(0.001, min(1.0, (today - SEASON_START).days / (REGULAR_SEASON_END - SEASON_START).days))
+
+# Ottoneu regular season caps
+BATTING_CAP = 135    # per-slot cap (our GP metric is per-slot average)
+IP_CAP = 1250
 
 def blend_fpts(team_name, projected_fpts):
     actual = actual_standings.get(team_name, {}).get('actual_fpts', 0)
@@ -370,9 +384,38 @@ def blend_fpts(team_name, projected_fpts):
 
 standings['Blended FPTS'] = standings['Team'].apply(
     lambda t: blend_fpts(t, standings.loc[standings['Team'] == t, 'Projected FPTS'].values[0]))
+
+# ── Pace-adjusted standings ───────────────────────────────────────────────────
+standings['Actual FPTS'] = standings['Team'].apply(
+    lambda t: round(actual_standings.get(t, {}).get('actual_fpts', 0), 1))
+standings['GP'] = standings['Team'].apply(
+    lambda t: actual_standings.get(t, {}).get('games_played', 0))
+standings['IP'] = standings['Team'].apply(
+    lambda t: actual_standings.get(t, {}).get('ip_used', 0))
+
+# Pace = (% of cap used) / (% of regular season elapsed)
+# 1.0 = exactly on pace to hit cap; >1.0 = burning faster than expected
+def calc_pace(row):
+    bat_pace = (row['GP'] / BATTING_CAP) / reg_season_progress if row['GP'] > 0 else 1.0
+    ip_pace = (row['IP'] / IP_CAP) / reg_season_progress if row['IP'] > 0 else 1.0
+    return round((bat_pace + ip_pace) / 2, 3)
+
+standings['GP Pace'] = standings.apply(calc_pace, axis=1)
+
+# Pace-Adj Actual = actual FPTS normalized to overall pace
+# Deflates teams running hot, bumps teams running light
+standings['Pace-Adj Actual'] = standings.apply(
+    lambda row: round(row['Actual FPTS'] / row['GP Pace'], 1)
+        if row['GP Pace'] and row['GP Pace'] > 0 else row['Actual FPTS'], axis=1)
+
+# Pace-Adj Blended = pace-adjusted actual + remaining projected
+standings['Pace-Adj Blended'] = standings.apply(
+    lambda row: round(row['Pace-Adj Actual'] + row['Projected FPTS'] * season_remaining, 1), axis=1)
+
 standings = standings.sort_values('Blended FPTS', ascending=False).reset_index(drop=True)
 standings['Rank'] = standings.index + 1
-standings = standings[['Rank', 'Team', 'Blended FPTS', 'Projected FPTS', 'Salary', 'Players']]
+standings = standings[['Rank', 'Team', 'Blended FPTS', 'Pace-Adj Blended', 'Actual FPTS',
+                        'Pace-Adj Actual', 'GP', 'IP', 'GP Pace', 'Projected FPTS', 'Salary', 'Players']]
 
 # ── Sidebar (data-dependent widgets rendered after load) ──────────────────────
 with st.sidebar:
@@ -409,19 +452,42 @@ if page == "Standings":
     st.markdown(f"""
     <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
     Blended FPTS = actual points scored to date + remaining {active_proj_system} projected points ({round(season_remaining*100, 1)}% of season remaining).
+    Pace-Adj normalizes actual FPTS to league-average games played, so teams playing fewer games aren't penalized.
     </p>
     """, unsafe_allow_html=True)
     st.markdown(f'<p class="last-updated">Last updated: {last_updated.strftime("%b %d, %Y %I:%M %p")}</p>',
                 unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
-    top_team = standings.iloc[0]
-    avg_fpts = standings['Blended FPTS'].mean()
-    spread = standings['Blended FPTS'].iloc[0] - standings['Blended FPTS'].iloc[-1]
+    # View toggle
+    standings_view = st.radio(
+        "View",
+        ["Standard", "Pace-Adjusted"],
+        horizontal=True,
+        help="Pace-Adjusted normalizes each team's actual FPTS to league-average games played.",
+    )
 
+    if standings_view == "Pace-Adjusted":
+        sort_col = 'Pace-Adj Blended'
+        display_standings = standings.sort_values('Pace-Adj Blended', ascending=False).reset_index(drop=True).copy()
+        display_standings['Rank'] = display_standings.index + 1
+        top_team = display_standings.iloc[0]
+        avg_fpts = display_standings['Pace-Adj Blended'].mean()
+        spread = display_standings['Pace-Adj Blended'].iloc[0] - display_standings['Pace-Adj Blended'].iloc[-1]
+        show_cols = ['Rank', 'Team', 'Pace-Adj Blended', 'Blended FPTS', 'Pace-Adj Actual',
+                     'Actual FPTS', 'GP', 'IP', 'GP Pace', 'Projected FPTS']
+        leader_fpts = top_team['Pace-Adj Blended']
+    else:
+        display_standings = standings.copy()
+        top_team = display_standings.iloc[0]
+        avg_fpts = display_standings['Blended FPTS'].mean()
+        spread = display_standings['Blended FPTS'].iloc[0] - display_standings['Blended FPTS'].iloc[-1]
+        show_cols = ['Rank', 'Team', 'Blended FPTS', 'Actual FPTS', 'GP', 'IP', 'GP Pace', 'Projected FPTS', 'Salary', 'Players']
+        leader_fpts = top_team['Blended FPTS']
+
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f'''<div class="metric-card">
-            <div class="metric-label">Projected Leader</div>
+            <div class="metric-label">{"Pace-Adj " if standings_view == "Pace-Adjusted" else ""}Leader</div>
             <div class="metric-value" style="font-size:18px">{top_team["Team"]}</div>
         </div>''', unsafe_allow_html=True)
     with col2:
@@ -435,8 +501,40 @@ if page == "Standings":
             <div class="metric-value">{spread:,.0f}</div>
         </div>''', unsafe_allow_html=True)
 
+    # Highlight Large Farva row
+    farva_row = display_standings[display_standings['Team'] == 'Large Farva']
+    if not farva_row.empty and standings_view == "Pace-Adjusted":
+        farva_pace_adj = farva_row['Pace-Adj Blended'].values[0]
+        farva_standard = farva_row['Blended FPTS'].values[0]
+        delta = round(farva_pace_adj - farva_standard, 1)
+        delta_color = '#22c55e' if delta >= 0 else '#ef4444'
+        delta_sign = '+' if delta >= 0 else ''
+        st.markdown(f'''
+        <div style="background:#131929; border:1px solid #1e2d4a; border-radius:8px; padding:12px 16px; margin:12px 0; font-family: IBM Plex Mono, monospace; font-size: 12px; color: #e2e8f0;">
+            🧢 <strong>Large Farva</strong> — Pace-Adj Blended: <span style="color:#38bdf8">{farva_pace_adj:,.1f}</span>
+            vs Standard: {farva_standard:,.1f}
+            → <span style="color:{delta_color}">{delta_sign}{delta:,.1f} FPTS pace adjustment</span>
+        </div>''', unsafe_allow_html=True)
+
     st.markdown('<p class="section-header">Full Standings</p>', unsafe_allow_html=True)
-    st.dataframe(standings, use_container_width=True, hide_index=True, height=458)
+
+    # Style GP Pace column to highlight fast/slow teams
+    def style_gp_pace(val):
+        try:
+            v = float(val)
+            if v > 1.05:
+                return 'color: #f97316'  # orange = playing faster / inflated
+            elif v < 0.95:
+                return 'color: #22c55e'  # green = playing slower / undervalued
+        except:
+            pass
+        return ''
+
+    standings_display = display_standings[show_cols].rename(columns={'GP': 'Avg G'})
+    st.dataframe(
+        standings_display.style.map(style_gp_pace, subset=['GP Pace']),
+        use_container_width=True, hide_index=True, height=458
+    )
 
 
 # ── 2. Team Detail ────────────────────────────────────────────────────────────
@@ -804,7 +902,270 @@ elif page == "Head to Head":
                 })
                 st.dataframe(roster, use_container_width=True, hide_index=True)
 
-# ── 7. Pitching Report ────────────────────────────────────────────────────────
+# ── 7. Trade Analyzer ─────────────────────────────────────────────────────────
+elif page == "Trade Analyzer":
+    st.markdown("# Trade Analyzer")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    Compare the surplus value of any trade. Add players (or prospects with $0 projection) to each side,
+    then evaluate FPTS gained/lost and salary delta. Surplus = FPTS per dollar of salary.
+    </p>
+    """, unsafe_allow_html=True)
+
+    # ── Build a unified player pool: all rostered players + free agents ────────
+    # Rostered players
+    rostered_pool = all_players[['player_name', 'team_name', 'position', 'salary', 'FPTS']].copy()
+    rostered_pool = rostered_pool.rename(columns={'player_name': 'Name', 'team_name': 'Team',
+                                                   'position': 'POS', 'salary': 'Salary',
+                                                   'FPTS': 'Proj FPTS'})
+    rostered_pool['Status'] = 'Rostered'
+
+    # Free agents (salary = 0 in Ottoneu for FAs)
+    fa_pool = free_agents[['player_name', 'position', 'FPTS']].copy()
+    fa_pool = fa_pool.rename(columns={'player_name': 'Name', 'position': 'POS', 'FPTS': 'Proj FPTS'})
+    fa_pool['Team'] = 'Free Agent'
+    fa_pool['Salary'] = 0
+    fa_pool['Status'] = 'FA'
+
+    full_pool = pd.concat([rostered_pool, fa_pool], ignore_index=True)
+    full_pool['Proj FPTS'] = full_pool['Proj FPTS'].round(1)
+
+    # Lookup helper: given a name return their row data (prefer rostered over FA)
+    def lookup_player(name):
+        matches = full_pool[full_pool['Name'] == name]
+        if matches.empty:
+            return None
+        rostered = matches[matches['Status'] == 'Rostered']
+        return rostered.iloc[0] if not rostered.empty else matches.iloc[0]
+
+    # ── Side-by-side builder ──────────────────────────────────────────────────
+    all_names = sorted(full_pool['Name'].unique().tolist())
+
+    st.markdown('<p class="section-header">Build the Trade</p>', unsafe_allow_html=True)
+
+    # Instructions callout
+    st.markdown("""
+    <div style="background:#131929; border:1px solid #1e2d4a; border-radius:8px;
+                padding:12px 16px; margin-bottom:16px;
+                font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">
+    Add players to each side using the dropdowns. Prospects with no projection will show 0 FPTS —
+    add them and the salary delta will still reflect what you're paying for future value.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # State: maintain player lists for each side
+    if 'trade_side_a' not in st.session_state:
+        st.session_state.trade_side_a = []
+    if 'trade_side_b' not in st.session_state:
+        st.session_state.trade_side_b = []
+
+    col_a, col_b = st.columns(2)
+
+    # ── Side A ─────────────────────────────────────────────────────────────────
+    with col_a:
+        st.markdown('<p class="section-header">Side A — You Give</p>', unsafe_allow_html=True)
+
+        # Add player dropdown
+        available_a = [n for n in all_names if n not in st.session_state.trade_side_a]
+        add_a = st.selectbox("Add player to Side A", ["— select —"] + available_a,
+                             key="add_a_select")
+        if st.button("➕ Add to Side A", key="btn_add_a"):
+            if add_a != "— select —" and add_a not in st.session_state.trade_side_a:
+                st.session_state.trade_side_a.append(add_a)
+                st.rerun()
+
+        # Display current Side A players
+        if st.session_state.trade_side_a:
+            for i, pname in enumerate(st.session_state.trade_side_a):
+                p = lookup_player(pname)
+                if p is not None:
+                    fpts_str = f"{p['Proj FPTS']:.1f} FPTS"
+                    sal_str = f"${int(p['Salary'])}" if p['Salary'] > 0 else "FA"
+                    team_str = p['Team']
+                    rc1, rc2 = st.columns([3, 1])
+                    with rc1:
+                        st.markdown(f"""
+                        <div style="background:#0d1220; border:1px solid #1e2d4a; border-radius:6px;
+                                    padding:8px 12px; margin-bottom:6px;
+                                    font-family: IBM Plex Mono, monospace; font-size: 11px;">
+                            <span style="color:#e2e8f0; font-weight:600">{pname}</span>
+                            <span style="color:#64748b"> · {p['POS']} · {team_str}</span><br>
+                            <span style="color:#38bdf8">{fpts_str}</span>
+                            <span style="color:#64748b"> · {sal_str}</span>
+                        </div>""", unsafe_allow_html=True)
+                    with rc2:
+                        if st.button("✕", key=f"rm_a_{i}"):
+                            st.session_state.trade_side_a.pop(i)
+                            st.rerun()
+        else:
+            st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">No players added yet.</p>', unsafe_allow_html=True)
+
+    # ── Side B ─────────────────────────────────────────────────────────────────
+    with col_b:
+        st.markdown('<p class="section-header">Side B — You Receive</p>', unsafe_allow_html=True)
+
+        available_b = [n for n in all_names if n not in st.session_state.trade_side_b]
+        add_b = st.selectbox("Add player to Side B", ["— select —"] + available_b,
+                             key="add_b_select")
+        if st.button("➕ Add to Side B", key="btn_add_b"):
+            if add_b != "— select —" and add_b not in st.session_state.trade_side_b:
+                st.session_state.trade_side_b.append(add_b)
+                st.rerun()
+
+        if st.session_state.trade_side_b:
+            for i, pname in enumerate(st.session_state.trade_side_b):
+                p = lookup_player(pname)
+                if p is not None:
+                    fpts_str = f"{p['Proj FPTS']:.1f} FPTS"
+                    sal_str = f"${int(p['Salary'])}" if p['Salary'] > 0 else "FA"
+                    team_str = p['Team']
+                    rc1, rc2 = st.columns([3, 1])
+                    with rc1:
+                        st.markdown(f"""
+                        <div style="background:#0d1220; border:1px solid #1e2d4a; border-radius:6px;
+                                    padding:8px 12px; margin-bottom:6px;
+                                    font-family: IBM Plex Mono, monospace; font-size: 11px;">
+                            <span style="color:#e2e8f0; font-weight:600">{pname}</span>
+                            <span style="color:#64748b"> · {p['POS']} · {team_str}</span><br>
+                            <span style="color:#38bdf8">{fpts_str}</span>
+                            <span style="color:#64748b"> · {sal_str}</span>
+                        </div>""", unsafe_allow_html=True)
+                    with rc2:
+                        if st.button("✕", key=f"rm_b_{i}"):
+                            st.session_state.trade_side_b.pop(i)
+                            st.rerun()
+        else:
+            st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">No players added yet.</p>', unsafe_allow_html=True)
+
+    # ── Clear button ──────────────────────────────────────────────────────────
+    if st.button("🗑 Clear Trade", key="clear_trade"):
+        st.session_state.trade_side_a = []
+        st.session_state.trade_side_b = []
+        st.rerun()
+
+    # ── Analysis: only if both sides have at least one player ─────────────────
+    if st.session_state.trade_side_a and st.session_state.trade_side_b:
+        st.markdown("---")
+        st.markdown('<p class="section-header">Trade Analysis</p>', unsafe_allow_html=True)
+
+        def side_stats(player_list):
+            rows = []
+            for pname in player_list:
+                p = lookup_player(pname)
+                if p is not None:
+                    salary = float(p['Salary']) if p['Salary'] else 0
+                    fpts = float(p['Proj FPTS']) if p['Proj FPTS'] else 0
+                    # Surplus: FPTS per dollar; $1 floor to avoid div/0 for prospects
+                    surplus = round(fpts / max(salary, 1), 2)
+                    rows.append({
+                        'Player': pname,
+                        'POS': p['POS'],
+                        'Team': p['Team'],
+                        'Salary': salary,
+                        'Proj FPTS': fpts,
+                        'FPTS/$': surplus,
+                    })
+            return pd.DataFrame(rows) if rows else pd.DataFrame(
+                columns=['Player', 'POS', 'Team', 'Salary', 'Proj FPTS', 'FPTS/$'])
+
+        df_a = side_stats(st.session_state.trade_side_a)
+        df_b = side_stats(st.session_state.trade_side_b)
+
+        total_fpts_a = df_a['Proj FPTS'].sum()
+        total_fpts_b = df_b['Proj FPTS'].sum()
+        total_sal_a  = df_a['Salary'].sum()
+        total_sal_b  = df_b['Salary'].sum()
+
+        fpts_delta = total_fpts_b - total_fpts_a   # positive = you gain FPTS
+        sal_delta  = total_sal_b - total_sal_a     # positive = you gain salary
+        surplus_a  = df_a['FPTS/$'].mean() if not df_a.empty else 0
+        surplus_b  = df_b['FPTS/$'].mean() if not df_b.empty else 0
+        surplus_delta = surplus_b - surplus_a
+
+        # ── Summary metric cards ──────────────────────────────────────────────
+        m1, m2, m3, m4 = st.columns(4)
+        fpts_color   = '#22c55e' if fpts_delta > 0 else '#ef4444' if fpts_delta < 0 else '#94a3b8'
+        sal_color    = '#ef4444' if sal_delta > 0 else '#22c55e' if sal_delta < 0 else '#94a3b8'
+        surp_color   = '#22c55e' if surplus_delta > 0 else '#ef4444' if surplus_delta < 0 else '#94a3b8'
+
+        fpts_sign  = '+' if fpts_delta > 0 else ''
+        sal_sign   = '+' if sal_delta > 0 else ''
+        surp_sign  = '+' if surplus_delta > 0 else ''
+
+        with m1:
+            st.markdown(f'''<div class="metric-card">
+                <div class="metric-label">FPTS Delta (You)</div>
+                <div class="metric-value" style="color:{fpts_color}; font-size:22px">{fpts_sign}{fpts_delta:,.1f}</div>
+                <div class="metric-label">Give {total_fpts_a:.1f} · Get {total_fpts_b:.1f}</div>
+            </div>''', unsafe_allow_html=True)
+        with m2:
+            st.markdown(f'''<div class="metric-card">
+                <div class="metric-label">Salary Delta (You)</div>
+                <div class="metric-value" style="color:{sal_color}; font-size:22px">{sal_sign}${sal_delta:,.0f}</div>
+                <div class="metric-label">Give ${total_sal_a:.0f} · Get ${total_sal_b:.0f}</div>
+            </div>''', unsafe_allow_html=True)
+        with m3:
+            st.markdown(f'''<div class="metric-card">
+                <div class="metric-label">Avg FPTS/$ Delta</div>
+                <div class="metric-value" style="color:{surp_color}; font-size:22px">{surp_sign}{surplus_delta:.2f}</div>
+                <div class="metric-label">Give {surplus_a:.2f} · Get {surplus_b:.2f}</div>
+            </div>''', unsafe_allow_html=True)
+
+        # Verdict card
+        with m4:
+            if fpts_delta > 0 and surplus_delta >= 0:
+                verdict = "WIN"
+                v_color = '#22c55e'
+                v_sub = "FPTS + efficiency up"
+            elif fpts_delta > 0 and surplus_delta < 0:
+                verdict = "FPTS WIN"
+                v_color = '#86efac'
+                v_sub = "More FPTS, less efficient"
+            elif fpts_delta < 0 and surplus_delta > 0:
+                verdict = "EFF WIN"
+                v_color = '#38bdf8'
+                v_sub = "Better $/FPTS, fewer points"
+            elif fpts_delta < 0 and surplus_delta <= 0:
+                verdict = "LOSS"
+                v_color = '#ef4444'
+                v_sub = "FPTS + efficiency down"
+            else:
+                verdict = "EVEN"
+                v_color = '#94a3b8'
+                v_sub = "Roughly neutral"
+
+            st.markdown(f'''<div class="metric-card">
+                <div class="metric-label">Verdict</div>
+                <div class="metric-value" style="color:{v_color}; font-size:26px">{verdict}</div>
+                <div class="metric-label">{v_sub}</div>
+            </div>''', unsafe_allow_html=True)
+
+        # ── Player breakdown tables ───────────────────────────────────────────
+        st.markdown("")
+        ta_col, tb_col = st.columns(2)
+
+        def fmt_side_df(df):
+            d = df.copy()
+            d['Salary'] = d['Salary'].apply(lambda x: f"${int(x)}" if x > 0 else "FA")
+            d['Proj FPTS'] = d['Proj FPTS'].round(1)
+            d['FPTS/$'] = d['FPTS/$'].round(2)
+            return d[['Player', 'POS', 'Team', 'Salary', 'Proj FPTS', 'FPTS/$']]
+
+        with ta_col:
+            st.markdown('<p class="section-header">Side A — You Give</p>', unsafe_allow_html=True)
+            st.dataframe(fmt_side_df(df_a), use_container_width=True, hide_index=True)
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Totals: {total_fpts_a:.1f} FPTS · ${total_sal_a:.0f} salary · {surplus_a:.2f} FPTS/$</p>', unsafe_allow_html=True)
+
+        with tb_col:
+            st.markdown('<p class="section-header">Side B — You Receive</p>', unsafe_allow_html=True)
+            st.dataframe(fmt_side_df(df_b), use_container_width=True, hide_index=True)
+            st.markdown(f'<p style="font-family: IBM Plex Mono, monospace; font-size: 11px; color: #64748b;">Totals: {total_fpts_b:.1f} FPTS · ${total_sal_b:.0f} salary · {surplus_b:.2f} FPTS/$</p>', unsafe_allow_html=True)
+
+    elif st.session_state.trade_side_a or st.session_state.trade_side_b:
+        st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px; margin-top: 16px;">Add at least one player to each side to see the analysis.</p>', unsafe_allow_html=True)
+
+
+# ── 8. Pitching Report ────────────────────────────────────────────────────────
 elif page == "Pitching Report":
     st.markdown("# Pitching Report")
     st.markdown("""
