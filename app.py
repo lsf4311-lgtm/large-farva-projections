@@ -1427,7 +1427,7 @@ elif page == "Pitching Recommendation":
 
             st.dataframe(
                 display_df.style.applymap(color_grade, subset=['Grade']),
-                width='stretch', hide_index=True
+                use_container_width=True, hide_index=True
             )
             st.markdown('<p style="color:#64748b; font-size: 11px;">Opp OPS Rank: 1/30 = toughest lineup in MLB, 30/30 = weakest.</p>', unsafe_allow_html=True)
         else:
