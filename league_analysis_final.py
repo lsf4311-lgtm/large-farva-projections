@@ -318,8 +318,7 @@ def get_league_rosters():
     league_url = f"https://ottoneu.fangraphs.com/{LEAGUE_ID}/standings"
     response = make_api_request(league_url)
     if not response:
-        print("Failed to fetch league standings page")
-        return pd.DataFrame()
+        raise Exception("Failed to fetch league standings page (blocked/rate-limited?)")
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -387,6 +386,8 @@ def get_league_rosters():
         time.sleep(3)
 
     df = pd.DataFrame(all_players)
+    if df.empty:
+        raise Exception(f"Roster scrape returned zero players across {len(team_links)} teams -- likely blocked/rate-limited by Ottoneu")
     print(f"\nTotal players scraped: {len(df)} across {df['team_name'].nunique()} teams")
 
     # Save timestamp of successful scrape
