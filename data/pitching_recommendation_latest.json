@@ -1,0 +1,177 @@
+{
+  "date": "2026-09-01",
+  "generated_at": "2026-08-31T18:40:34.409689",
+  "start": [
+    {
+      "name": "Jacob DeGrom",
+      "role": "pitcher",
+      "reason": "Elite season rate (1.68 pts/out) with sharp recent form (2.05); A-grade matchup vs. weakest lineup in MLB (rank 29/29, 0.642 OPS)."
+    },
+    {
+      "name": "Spencer Miles",
+      "role": "pitcher",
+      "reason": "Hot recent stretch (2.52 pts/out over last 16 outs) with B-grade matchup vs. sub-.700 OPS opponent."
+    },
+    {
+      "name": "Joey Cantillo",
+      "role": "pitcher",
+      "reason": "Solid season rate (1.38 pts/out) with C-grade matchup vs. weaker lineup (rank 25/29, 0.68 OPS)."
+    },
+    {
+      "name": "Graham Ashcraft",
+      "role": "pitcher",
+      "reason": "Strongest season rate available (2.37 pts/out) despite no recent sample; rotation prediction uncertain but matchup grade unavailable."
+    },
+    {
+      "name": "Landen Roupp",
+      "role": "pitcher",
+      "reason": "Confirmed starter with 1.54 season rate; D-grade matchup vs. tough PIT lineup (rank 2/29) is downside but limited alternatives."
+    }
+  ],
+  "sit": [
+    {
+      "name": "Will Dion",
+      "role": "pitcher",
+      "reason": "Recent collapse (0.79 pts/out over 20 outs) with unconfirmed rotation and minimal matchup data; too risky."
+    },
+    {
+      "name": "Walbert Urena",
+      "role": "pitcher",
+      "reason": "Unconfirmed rotation vs. NYY with no matchup grade; recent form (1.16 pts/out) below alternatives."
+    },
+    {
+      "name": "Gavin Stone",
+      "role": "pitcher",
+      "reason": "Zero season and recent output with unconfirmed rotation; insufficient data to recommend."
+    }
+  ],
+  "close_calls": [
+    {
+      "players": [
+        "Spencer Miles",
+        "Landen Roupp"
+      ],
+      "note": "Miles has better recent form and matchup (B-grade), but only 16 outs of recent sample; Roupp confirmed with larger sample but faces toughest lineup. Miles edges ahead on form and grade."
+    },
+    {
+      "players": [
+        "Graham Ashcraft",
+        "Landen Roupp"
+      ],
+      "note": "Ashcraft's 2.37 season rate is elite but zero recent data and unconfirmed rotation; Roupp is confirmed with decent rate but hard matchup. Ashcraft's upside selected despite uncertainty."
+    }
+  ],
+  "low_confidence_flags": [
+    {
+      "name": "Spencer Miles",
+      "reason": "Recent sample of only 16 outs; recent form looks sharp but small-sample volatility risk."
+    },
+    {
+      "name": "Graham Ashcraft",
+      "reason": "Zero recent starts and unconfirmed rotation; entire recommendation rests on season rate with no current form data."
+    },
+    {
+      "name": "Will Dion",
+      "reason": "Only 20 outs in recent sample and unconfirmed rotation; recent collapse may be noise or real decline."
+    },
+    {
+      "name": "Walbert Urena",
+      "reason": "Unconfirmed rotation; cannot reliably predict if he starts today."
+    },
+    {
+      "name": "Gavin Stone",
+      "reason": "No season or recent data available; unconfirmed rotation makes inclusion highly speculative."
+    }
+  ],
+  "pitchers": [
+    {
+      "name": "Jacob DeGrom",
+      "opponent_team": "ATH",
+      "season_pts_per_out": 1.6832907075873826,
+      "recent_pts_per_out": 2.045977011494253,
+      "recent_outs_sample": 29,
+      "matchup_grade": "A",
+      "opponent_ops_rank": "29/29",
+      "opponent_ops": 0.642,
+      "rotation_confirmed": true
+    },
+    {
+      "name": "Gavin Stone",
+      "opponent_team": "STL",
+      "season_pts_per_out": 0.0,
+      "recent_pts_per_out": 0.0,
+      "recent_outs_sample": 0,
+      "matchup_grade": null,
+      "opponent_ops_rank": null,
+      "opponent_ops": null,
+      "rotation_confirmed": false
+    },
+    {
+      "name": "Joey Cantillo",
+      "opponent_team": "TOR",
+      "season_pts_per_out": 1.375468622656887,
+      "recent_pts_per_out": 1.229166666666667,
+      "recent_outs_sample": 32,
+      "matchup_grade": "C",
+      "opponent_ops_rank": "25/29",
+      "opponent_ops": 0.68,
+      "rotation_confirmed": true
+    },
+    {
+      "name": "Graham Ashcraft",
+      "opponent_team": "SDP",
+      "season_pts_per_out": 2.3703703703703707,
+      "recent_pts_per_out": 0.0,
+      "recent_outs_sample": 0,
+      "matchup_grade": null,
+      "opponent_ops_rank": null,
+      "opponent_ops": null,
+      "rotation_confirmed": false
+    },
+    {
+      "name": "Will Dion",
+      "opponent_team": "ATL",
+      "season_pts_per_out": 1.4977346278317156,
+      "recent_pts_per_out": 0.7866666666666671,
+      "recent_outs_sample": 20,
+      "matchup_grade": "C",
+      "opponent_ops_rank": null,
+      "opponent_ops": null,
+      "rotation_confirmed": false
+    },
+    {
+      "name": "Landen Roupp",
+      "opponent_team": "PIT",
+      "season_pts_per_out": 1.5442322991249005,
+      "recent_pts_per_out": 1.0569892473118279,
+      "recent_outs_sample": 31,
+      "matchup_grade": "D",
+      "opponent_ops_rank": "2/29",
+      "opponent_ops": 0.779,
+      "rotation_confirmed": true
+    },
+    {
+      "name": "Walbert Urena",
+      "opponent_team": "NYY",
+      "season_pts_per_out": 1.6136580706781283,
+      "recent_pts_per_out": 1.155128205128205,
+      "recent_outs_sample": 26,
+      "matchup_grade": null,
+      "opponent_ops_rank": null,
+      "opponent_ops": null,
+      "rotation_confirmed": false
+    },
+    {
+      "name": "Spencer Miles",
+      "opponent_team": "CLE",
+      "season_pts_per_out": 1.8806666666666665,
+      "recent_pts_per_out": 2.5166666666666666,
+      "recent_outs_sample": 16,
+      "matchup_grade": "B",
+      "opponent_ops_rank": "22/29",
+      "opponent_ops": 0.697,
+      "rotation_confirmed": false
+    }
+  ],
+  "batters": []
+}

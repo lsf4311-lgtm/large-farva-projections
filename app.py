@@ -327,6 +327,7 @@ with st.sidebar:
         "Head to Head",
         "Trade Analyzer",
         "Pitching Report",
+        "Pitching Recommendation",
     ])
     st.markdown("---")
 
@@ -1351,3 +1352,83 @@ elif page == "Pitching Report":
                 st.markdown('<p style="color:#64748b; font-family: IBM Plex Mono, monospace; font-size: 12px;">Could not load schedule.</p>', unsafe_allow_html=True)
 
             st.markdown("---")
+
+
+# ── 8. Pitching Recommendation ────────────────────────────────────────────────
+elif page == "Pitching Recommendation":
+    st.markdown("# Pitching Recommendation")
+    st.markdown("""
+    <p style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #64748b; margin-bottom: 16px;">
+    Daily sit/start recommendation from the pitching agent, generated locally and pushed here manually. Nothing here is submitted to Ottoneu automatically -- review and set your lineup yourself.
+    </p>
+    """, unsafe_allow_html=True)
+
+    rec_path = os.path.join(DATA_DIR, 'pitching_recommendation_latest.json')
+    if not os.path.exists(rec_path):
+        st.warning("No recommendation has been generated yet. Run main.py locally, then git add/commit/push data/pitching_recommendation_latest.json to this Space.")
+    else:
+        import json
+        with open(rec_path) as f:
+            rec = json.load(f)
+
+        generated_at = rec.get('generated_at', 'unknown')
+        try:
+            generated_display = datetime.fromisoformat(generated_at).strftime('%b %d, %Y %I:%M %p')
+        except Exception:
+            generated_display = generated_at
+
+        st.markdown(f'<p class="last-updated">For {rec.get("date", "unknown date")} &middot; generated {generated_display}</p>', unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown('<p class="section-header">Start</p>', unsafe_allow_html=True)
+            if rec.get('start'):
+                for p in rec['start']:
+                    st.markdown(f"**{p['name']}** ({p.get('role', '')})  \n{p['reason']}")
+            else:
+                st.markdown('<p style="color:#64748b; font-size:13px;">No changes recommended.</p>', unsafe_allow_html=True)
+        with col2:
+            st.markdown('<p class="section-header">Sit</p>', unsafe_allow_html=True)
+            if rec.get('sit'):
+                for p in rec['sit']:
+                    st.markdown(f"**{p['name']}** ({p.get('role', '')})  \n{p['reason']}")
+            else:
+                st.markdown('<p style="color:#64748b; font-size:13px;">No changes recommended.</p>', unsafe_allow_html=True)
+
+        if rec.get('close_calls'):
+            st.markdown('<p class="section-header">Close Calls</p>', unsafe_allow_html=True)
+            for c in rec['close_calls']:
+                st.markdown(f"**{' vs '.join(c['players'])}** — {c['note']}")
+
+        if rec.get('low_confidence_flags'):
+            st.markdown('<p class="section-header">Low-Confidence Flags</p>', unsafe_allow_html=True)
+            for flag in rec['low_confidence_flags']:
+                st.markdown(f"**{flag['name']}** — {flag['reason']}")
+
+        # ── Pitcher Matchup Data table ────────────────────────────────────────
+        pitchers = rec.get('pitchers', [])
+        if pitchers:
+            st.markdown('<p class="section-header">Pitcher Matchup Data</p>', unsafe_allow_html=True)
+            pdf = pd.DataFrame(pitchers)
+            pdf['matchup_grade'] = pdf['matchup_grade'].fillna('—')
+            pdf['opponent_ops_rank'] = pdf['opponent_ops_rank'].fillna('no data')
+            pdf['rotation_confirmed'] = pdf['rotation_confirmed'].map({True: 'Confirmed', False: 'Unconfirmed'})
+            pdf = pdf.sort_values('matchup_grade')
+            display_df = pdf.rename(columns={
+                'name': 'Player', 'opponent_team': 'Opp', 'matchup_grade': 'Grade',
+                'opponent_ops_rank': 'Opp OPS Rank', 'season_pts_per_out': 'Season Pts/Out',
+                'recent_pts_per_out': 'Recent Pts/Out', 'recent_outs_sample': 'Recent Outs',
+                'rotation_confirmed': 'Rotation',
+            })[['Player', 'Opp', 'Grade', 'Opp OPS Rank', 'Season Pts/Out', 'Recent Pts/Out', 'Recent Outs', 'Rotation']]
+
+            grade_colors = {'A': '#22c55e', 'B': '#4ade80', 'C': '#eab308', 'D': '#f97316', 'F': '#ef4444'}
+            def color_grade(val):
+                return f'color: {grade_colors.get(val, "#64748b")}; font-weight:600;'
+
+            st.dataframe(
+                display_df.style.applymap(color_grade, subset=['Grade']),
+                width='stretch', hide_index=True
+            )
+            st.markdown('<p style="color:#64748b; font-size: 11px;">Opp OPS Rank: 1/30 = toughest lineup in MLB, 30/30 = weakest.</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p style="color:#64748b; font-size:13px;">No pitcher data in this recommendation.</p>', unsafe_allow_html=True)

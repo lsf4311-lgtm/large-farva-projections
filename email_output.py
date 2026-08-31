@@ -51,6 +51,51 @@ def _advanced_stats_rows(slate: LineupSlateInput | None) -> str:
 """
 
 
+_GRADE_COLORS = {"A": "#1a7f37", "B": "#4a9c4a", "C": "#8a8a2a", "D": "#c07a1e", "F": "#c0392b"}
+
+
+def _pitcher_matchup_rows(slate: LineupSlateInput | None) -> str:
+    """Same principle as the batter table above: every number here comes
+    straight from PitcherInput, not from Claude's prose, so the person can
+    check the model's rationale against the actual inputs it was given
+    rather than trusting a one-sentence summary of four separate signals."""
+    if not slate or not slate.available_pitchers:
+        return ""
+    rows = []
+    for p in sorted(slate.available_pitchers,
+                     key=lambda x: (x.matchup_grade or "Z", -x.season_pts_per_out)):
+        grade_display = p.matchup_grade or "—"
+        color = _GRADE_COLORS.get(p.matchup_grade, "#888")
+        rank_display = p.opponent_ops_rank or "no data"
+        confirmed_display = (
+            "Confirmed" if p.rotation_confirmed else
+            '<span style="color:#c07a1e;">Unconfirmed</span>'
+        )
+        rows.append(
+            f"<tr><td>{p.name}</td><td>{p.opponent_team}</td>"
+            f"<td style='color:{color}; font-weight:600;'>{grade_display}</td>"
+            f"<td>{rank_display}</td>"
+            f"<td>{p.season_pts_per_out:.3f}</td>"
+            f"<td>{p.recent_pts_per_out:.3f} <span style='color:#888;'>({p.recent_outs_sample} outs)</span></td>"
+            f"<td>{confirmed_display}</td></tr>"
+        )
+    if not rows:
+        return ""
+    return f"""
+  <h3>Pitcher Matchup Data</h3>
+  <table style="border-collapse: collapse; font-size: 13px;">
+    <tr style="text-align:left; color:#666;">
+      <th style="padding-right:16px;">Player</th><th style="padding-right:16px;">Opp</th>
+      <th style="padding-right:16px;">Grade</th><th style="padding-right:16px;">Opp OPS Rank</th>
+      <th style="padding-right:16px;">Season Pts/Out</th><th style="padding-right:16px;">Recent Pts/Out</th>
+      <th>Rotation</th>
+    </tr>
+    {''.join(rows)}
+  </table>
+  <p style="color:#888; font-size: 11px;">Opp OPS Rank: 1/30 = toughest lineup in MLB, 30/30 = weakest.</p>
+"""
+
+
 def render_html(recommendation: dict, slate: LineupSlateInput | None = None) -> str:
     date = recommendation.get("date", "")
     start = recommendation.get("start", [])
@@ -85,6 +130,7 @@ def render_html(recommendation: dict, slate: LineupSlateInput | None = None) -> 
 
   <h3>Low-confidence flags (small sample)</h3>
   <ul>{flags_html}</ul>
+{_pitcher_matchup_rows(slate)}
 {_advanced_stats_rows(slate)}
   <p style="color:#888; font-size: 12px;">
     Generated automatically from splits + matchup data. Nothing has been
@@ -128,6 +174,34 @@ def write_local(recommendation: dict, slate: LineupSlateInput | None = None) -> 
         f.write(render_text(recommendation))
 
     return html_path, txt_path
+
+
+def write_json(recommendation: dict, slate: LineupSlateInput,
+               path: str = "data/pitching_recommendation_latest.json") -> str:
+    """Writes a combined JSON (Claude's recommendation + the raw pitcher
+    data table) to a TRACKED location, not the gitignored output/ dir --
+    this file needs to survive a git commit + push to actually show up on
+    the deployed app.py Streamlit page. Overwrites the previous day's file
+    each run rather than keeping history; add date-stamped archiving later
+    if trend-over-time ever becomes something worth showing."""
+    import json as _json
+    from dataclasses import asdict
+
+    payload = {
+        "date": recommendation.get("date", slate.date),
+        "generated_at": dt.datetime.now().isoformat(),
+        "start": recommendation.get("start", []),
+        "sit": recommendation.get("sit", []),
+        "close_calls": recommendation.get("close_calls", []),
+        "low_confidence_flags": recommendation.get("low_confidence_flags", []),
+        "pitchers": [asdict(p) for p in slate.available_pitchers],
+        "batters": [asdict(b) for b in slate.available_batters],
+    }
+
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as f:
+        _json.dump(payload, f, indent=2)
+    return path
 
 
 def send_via_smtp(recommendation: dict) -> None:

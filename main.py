@@ -162,6 +162,11 @@ def run() -> None:
     print(f"Wrote {html_path}")
     print(f"Wrote {txt_path}")
 
+    json_path = email_output.write_json(recommendation, slate)
+    print(f"Wrote {json_path}")
+    print("  (this file needs `git add`, `git commit`, `git push hf main` to actually "
+          "show up on the live Streamlit app -- writing it here doesn't publish it by itself)")
+
     if config.SEND_EMAIL:
         email_output.send_via_smtp(recommendation)
         print("Sent email.")
