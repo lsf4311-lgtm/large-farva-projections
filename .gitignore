@@ -6,3 +6,5 @@ old apps/
 old briefs/
 debug_fa.py
 scratchwork.py
+cache/
+output/
