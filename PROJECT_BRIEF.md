@@ -66,11 +66,17 @@ Local only (never push):
 Scrapes all 12 team roster pages from Ottoneu. Returns player name, Ottoneu fg_id, position, salary, player_type (hitters/pitchers). Saves roster_scrape_timestamp.txt on success.
 
 ### Step 2: Projection fetch (auto-refresh)
-fetch_projections(system, username, password) logs into FanGraphs via WordPress auth (blogs.fangraphs.com/wp-login.php), hits api/projections endpoint for all 4 CSVs (OOPSY/ATC hitting/pitching), saves fresh copies to disk. Falls back to CSV if login fails. Credentials stored in HF Secrets (FG_USER, FG_PASS). Sidebar shows "✓ live" or "⚠️ cached" with timestamp.
+fetch_projections(system, username, password) logs into FanGraphs via WordPress auth (blogs.fangraphs.com/wp-login.php), hits api/projections endpoint for all 6 systems, saves fresh copies to disk. Falls back to CSV if login fails. Credentials stored in HF Secrets (FG_USER, FG_PASS). Sidebar shows "✓ live" or "⚠️ cached" with timestamp.
 
-Projection endpoints:
-  api/projections?type=oopsy&stats=bat  (and pit, atc, atcdc, oopsydc, thebatx, thebatxdc variants)
-  OOPSY DC / ATC DC / THE BAT X DC unlock on Opening Day for in-season use.
+Projection endpoints (FanGraphs `type=` parameter):
+  OOPSY:        type=oopsy
+  ATC:          type=atc
+  THE BAT X:    type=thebatx
+  OOPSY DC:     type=roopsydc      <- note: "r" prefix, not "oopsydc"
+  ATC DC:       type=ratcdc        <- note: "r" prefix
+  THE BAT X DC: type=rthebatxdc    <- note: "r" prefix
+  DC variants unlock a few days after Opening Day.
+  Stats param: bat (hitting), pit (pitching)
 
 ### Step 3: Crosswalk merge
 SFBB crosswalk bridges Ottoneu IDs to FanGraphs IDs via OTTONEUID -> IDFANGRAPHS. Merges with projections on FanGraphs ID.
@@ -86,9 +92,12 @@ Post-processing: SP and RP slots re-ordered by FPTS descending so SP1 is always 
 ### Step 6: FA position data
 get_fa_positions() fetches accurate position eligibility from FanGraphs JSON API:
 - Hitters: one request per position (C/1B/2B/SS/3B/OF) using api/leaders/major-league/data
-- Pitchers: stats=sta → SP, stats=rel → RP (combined if both)
+- Pitchers: stats=sta -> SP, stats=rel -> RP (combined if both)
 - Crosswalk fallback for hitters missing from API
 - Name-based filter (rostered_names) catches rostered players missing from crosswalk (e.g. Luis Castillo IDFANGRAPHS=NaN bug)
+
+### Step 7: get_actual_standings()
+Scrapes Ottoneu standings page for actual cumulative FPTS per team (Pts column) and IP used (gamesPlayed table). Used for blended standings model. Cached daily (ttl=86400).
 
 ### Key Fixes Baked In
 - Crosswalk OTTONEUID float suffix (.0) - fixed with int(float(x))
@@ -98,6 +107,7 @@ get_fa_positions() fetches accurate position eligibility from FanGraphs JSON API
 - File paths use os.path.join for cross-platform compatibility
 - FA filter uses BOTH fg_id and player name to prevent rostered players leaking into FA pool
 - Player Search now searches both rostered players AND free agents (fix: March 2026)
+- DC projection endpoint names use "r" prefix (roopsydc, ratcdc, rthebatxdc) — discovered April 2026
 
 ### Known Limitations
 - Ohtani appears as pitcher only in optimizer. Hitting FPTS added to his pitching row. Will not appear in Util or hitting slots. Noted with asterisk on Positional Breakdown page.
@@ -105,7 +115,8 @@ get_fa_positions() fetches accurate position eligibility from FanGraphs JSON API
 - Salary figures do not account for cap penalties.
 - Scraper can get rate-limited by Ottoneu if run too frequently. Fallback to cached CSV handles this gracefully.
 - Pitching Report page (stats/grades/rankings) is blank pre-season — Baseball Savant has no data until Opening Day.
-- ~70+ rostered players have no IDFANGRAPHS in SFBB crosswalk (mostly prospects/international). These rely on name-based filter. Crosswalk updates over time as SFBB adds entries.
+- ~70+ rostered players have no IDFANGRAPHS in SFBB crosswalk (mostly prospects/international). These rely on name-based filter.
+- DC CSV fallback files are not committed to repo — if live DC fetch fails on a fresh deploy there is no fallback. DC variants require successful live fetch to work.
 
 ## Streamlit App (app.py)
 
@@ -118,17 +129,26 @@ Dark theme, IBM Plex Mono/Sans fonts, navy/blue palette. Cached weekly via @st.c
 3. PROJECTION_FILES dict (all 6 systems: OOPSY, ATC, THE BAT X, OOPSY DC, ATC DC, THE BAT X DC)
 4. Projection system selector in sidebar (MUST be declared before load_all_data call)
 5. load_all_data(projection_system) definition
-6. Data load call
-7. Sidebar freshness widgets
-8. Pages
+6. load_actual_standings() definition (daily cache, ttl=86400)
+7. Data load call
+8. Blended standings calculation (season progress % x projected + actual)
+9. Sidebar freshness widgets
+10. Pages
 
 ### Sidebar
 - Projection system toggle: OOPSY / ATC / THE BAT X (base), Preseason / In-Season (DC) (type)
 - Refresh button
 - Data Freshness: roster timestamp (amber=cached, green=live), projection freshness (amber=cached, green=live with date)
 
+### Blended Standings Model
+- Season progress = (today - Mar 27) / (Sep 28 - Mar 27), clamped 0-1
+- Blended FPTS = actual_fpts_to_date + (projected_fpts x season_remaining)
+- Actual FPTS scraped daily from Ottoneu standings page
+- Projected FPTS from optimizer (weekly cache)
+- Standings sorted by Blended FPTS; Projected FPTS shown as secondary column
+
 ### Pages
-1. Standings - full league table with top-line metrics
+1. Standings - blended FPTS (actual + remaining projected), full league table
 2. Team Detail - defaults to Large Farva, roster split into starters/bench sorted by FPTS
 3. Positional Breakdown - slot-level detail + position group summary. Ohtani asterisk.
 4. Free Agent Targets - Best Available by Position (one row per position, gain colored) + Full FA list with position filter
@@ -153,8 +173,9 @@ Pre-season: page loads but stats/grades are blank (no Savant data until Opening 
 all_players, standings, free_agents, rosters_with_fgid, crosswalk, atc_hitting, atc_pitching, roster_source, proj_source, last_updated, projection_system
 
 ### Scraper Fallback
-If Ottoneu scrape fails → cached CSV, roster_source='cached', amber sidebar warning.
-If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber sidebar warning.
+If Ottoneu scrape fails -> cached CSV, roster_source='cached', amber sidebar warning.
+If FanGraphs projection fetch fails -> cached CSV, proj_source='cached', amber sidebar warning.
+If DC projection fetch fails AND no fallback CSV exists -> app crashes. Fix: run live fetch locally first to generate CSV, then commit.
 
 ## Current Projected Standings (OOPSY, Two-Phase Optimized Lineups)
 1  Large Farva               389    16205.8    40
@@ -172,9 +193,9 @@ If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber 
 
 ## Roadmap
 
-### ✅ Completed
+### Completed
 - ATC vs OOPSY projection toggle (sidebar dropdown)
-- OOPSY DC / ATC DC in-season variants (unlock Opening Day)
+- OOPSY DC / ATC DC / THE BAT X DC in-season variants (type= r-prefix endpoints)
 - THE BAT X and THE BAT X DC projection systems added
 - Auto-refresh projections from FanGraphs API (daily, with CSV fallback)
 - FA position accuracy: FanGraphs API for hitters (C/1B/2B/SS/3B/OF), sta/rel for pitchers (SP/RP)
@@ -182,47 +203,51 @@ If FanGraphs projection fetch fails → cached CSV, proj_source='cached', amber 
 - Pitching Report page: schedule, matchup grades, season stats, rotation prediction, opponent rankings, summary ranking table
 - Player Search fix: now searches both rostered players and free agents
 - Migrated from Streamlit Community Cloud to Hugging Face Spaces
-- Keepwarm script: Windows Task Scheduler job fixed (cmd.exe wrapper handles path spaces), pings HF Space URL daily at 8am
+- Blended standings model: actual FPTS to date + remaining projected FPTS (season progress scalar)
+- Pitching Report schedule bug fixed: switched _get_player_id to /api/v1/people?search= endpoint, added ?hydrate=currentTeam to _get_player_team, added timedelta to datetime import
+- Pitching Report UI: collapsed repeated opponent matchup cards (e.g. 3x SD series → one card), fixed rotation line bold text rendering (**bold** → <strong>)
+- Keepwarm replaced by UptimeRobot: pings HF Space every 5 min from cloud, no dependency on local machine being awake
 
 ### P2 - Next
 - **Inflation model** (same app or separate TBD — scope further first)
-  
+
   **What it needs to do:**
   - Per position: total projected FPTS, keeper FPTS locked up, keeper salary, implied $/FPTS for kept players
-  - Remaining auction budget = $400 × 12 teams minus all keeper salaries
+  - Remaining auction budget = $400 x 12 teams minus all keeper salaries
   - Remaining FPTS = total FA pool FPTS
-  - Implied auction $/FPTS rate → dollar values assigned to each FA
+  - Implied auction $/FPTS rate -> dollar values assigned to each FA
   - Positional scarcity adjustment: positions with more FPTS locked in keepers get inflated prices
   - Historical calibration: validate model vs actual auction prices, identify position premiums, star player premiums, scarcity patterns
-  
+
   **Data pipeline:**
   - Current keeper data: already have via roster scrape (all 12 teams public)
-  - Historical data: Ottoneu transaction log (every add/drop/trade with salary and date). Auction acquisitions identified by clustering transactions on auction day (spike of adds on same date). Need sample of transaction log to assess format and cleaning required.
+  - Historical data: Ottoneu transaction log (every add/drop/trade with salary and date). Auction acquisitions identified by clustering transactions on auction day (spike of adds on same date).
   - Historical projections: need OOPSY/ATC CSVs from prior years to pair with auction prices for validation
-  
+
   **V1 scope (no historicals):** positional scarcity + implied dollar values — buildable in one session, ~80% of the value
   **V2 scope (with historicals):** calibrated model with position/player premiums — more accurate, requires transaction log parsing first
-  
-  **Decision pending:** same app (new page) vs separate app — leaning separate given it's a pre-draft tool with different workflow, but decide after scoping session
+
+  **Decision pending:** same app (new page) vs separate app — leaning separate given it's a pre-draft tool with different workflow
 
 ### P3 - Medium Term
 - Prospect breakout page: cross-reference top prospects against rosters, flag unowned ones worth stashing.
-- Load time optimization (if needed): parallelize get_fa_positions() with ThreadPoolExecutor (8 concurrent requests instead of sequential). Risk: more likely to trigger FanGraphs rate limiting. Only worth doing if load time becomes a real issue in daily use — current weekly cache means slow load only hits once per week anyway.
+- Include -1.0 FPTS players in Player Search: remove FPTS > 0 filter from free_agents to surface stashable prospects. Add clear label that these have no meaningful MLB projection.
+- Load time optimization (if needed): parallelize get_fa_positions() with ThreadPoolExecutor (8 concurrent requests instead of sequential). Risk: more likely to trigger FanGraphs rate limiting. Only worth doing if load time becomes a real issue.
 
 ### P4 - Offseason/Long Term
-- In-season actuals + weekly snapshots: blend actual FPTS with remaining projected, standings movement over time.
 - Ohtani two-way fix: inject synthetic hitter row so he appears in Util.
 - Salary efficiency view: FPTS per dollar, identify over/underpaid players.
 
 ## Key Technical Notes
 - Player ID systems: Ottoneu IDs != FanGraphs IDs. SFBB crosswalk bridges via OTTONEUID -> IDFANGRAPHS
 - FanGraphs WordPress login: POST to blogs.fangraphs.com/wp-login.php with log/pwd/rememberme. Auth confirmed by wordpress_sec_* cookie (not wordpress_logged_in — duplicate cookie names cause CookieConflictError in dict() but session still works).
-- FanGraphs projection API: api/projections?type={oopsy|atc|oopsydc|atcdc|thebatx|thebatxdc}&stats={bat|pit}&pos=all&team=0&players=0&lg=all — requires auth cookie, returns JSON list directly.
+- FanGraphs projection API: api/projections?type={see endpoints above}&stats={bat|pit}&pos=all&team=0&players=0&lg=all — requires auth cookie, returns JSON list directly.
 - FanGraphs FA position API: api/leaders/major-league/data?pos={pos}&stats={bat|sta|rel}&fl=569&ft=-1 — no auth needed.
 - Baseball Savant data: baseballsavant.mlb.com/statcast_search/csv — pitch-level CSV, no auth needed.
 - requirements.txt must pin streamlit==1.32.0 and altair==4.2.2 to avoid altair.vegalite.v4 error. beautifulsoup4 must be explicitly listed.
-- HF Spaces free tier sleeps inactive apps — keepwarm.py pings daily at 8am to prevent this
+- HF Spaces free tier sleeps inactive apps — UptimeRobot pings every 5 min to prevent this (replaced local keepwarm.py script)
 - DATA_DIR auto-detects: uses data subfolder locally, falls back to script directory on cloud
 - .streamlit/secrets.toml must be in .gitignore — never push credentials to GitHub or HF
 - st.dataframe() width parameter: use use_container_width=True, NOT width='stretch' (breaks on newer Streamlit versions)
 - Keepwarm Task Scheduler: use cmd.exe as program with /c "full\path\to\run_keepwarm.bat" as argument — direct .bat path fails when folder name contains spaces
+- DC projection endpoints use "r" prefix on FanGraphs API (roopsydc, ratcdc, rthebatxdc) — different from what you might expect based on preseason endpoint names
